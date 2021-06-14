@@ -1,0 +1,2 @@
+# projects
+Projects management plugin
