@@ -20,7 +20,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from ...shared.models.abstract_base import AbstractBaseMixin
 from ...shared.db_manager import Base
 from ...shared.connectors.auth import SessionProject, is_user_part_of_the_project, only_users_projects
-from ...shared.utils import RpcMixin
+from ...shared.utils.rpc import RpcMixin
 
 
 def user_is_project_admin():
