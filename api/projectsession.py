@@ -38,7 +38,7 @@ class ProjectSessionAPI(RestResource):
             project_id = SessionProject.get()
         if project_id:
             project = Project.get_or_404(project_id, exclude_fields=Project.API_EXCLUDE_FIELDS)
-            return project, 200
+            return project.to_json(), 200
         return {"message": "No project selected in session"}, 404
 
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
