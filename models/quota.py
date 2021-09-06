@@ -32,6 +32,8 @@ class ProjectQuota(AbstractBaseMixin, Base):
     data_retention_limit = Column(Integer, unique=False)
     last_update_time = Column(DateTime, server_default=utcnow())
 
+    dast_scans = Column(Integer, unique=False, default=-1)
+
     def update(self, vuh_limit, storage_space, data_retention_limit):
         self.vuh_limit = vuh_limit
         self.storage_space = storage_space
