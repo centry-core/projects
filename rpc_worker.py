@@ -44,5 +44,12 @@ def get_project_config(project_id=None):
         return {}
 
 
+def get_project_id():
+    project_id = SessionProject.get()
+    if not project_id:
+        project_id = get_user_projects()[0]["id"]
+    return project_id
+
+
 def set_active_project(project_id: Union[str, int]):
     SessionProject.set(int(project_id))

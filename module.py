@@ -51,7 +51,7 @@ class Module(module.ModuleModel):
 
         from .rpc_worker import (
             prj_or_404, list_projects, get_project_statistics, get_storage_quota,
-            check_quota, add_task_execution, set_active_project
+            check_quota, add_task_execution, set_active_project, get_project_id,
         )
         self.context.rpc_manager.register_function(prj_or_404, name='project_get_or_404')
         self.context.rpc_manager.register_function(list_projects, name='project_list')
@@ -60,6 +60,7 @@ class Module(module.ModuleModel):
         self.context.rpc_manager.register_function(get_storage_quota, name='project_get_storage_space_quota')
         self.context.rpc_manager.register_function(check_quota, name='project_check_quota')
         self.context.rpc_manager.register_function(set_active_project, name='set_active_project')
+        self.context.rpc_manager.register_function(get_project_id, name='get_project_id')
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
