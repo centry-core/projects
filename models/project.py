@@ -148,7 +148,7 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
             nav.append({"title": "Results", "link": "?chapter=Security&module=Results&page=all"})
             nav.append({"title": "Thresholds", "link": "?chapter=Security&module=Thresholds&page=all"})
             nav.append({"title": "Bug Bar", "link": "?chapter=Security&module=Bugbar&page=all"})
-            chapters.append({"title": "Security", "link": "?chapter=Security", "nav": nav})
+            chapters.append({"title": "Security", "link": "?chapter=Security&module=Overview&page=all", "nav": nav})
         return chapters
 
     def get_data_retention_limit(self) -> Optional[int]:
