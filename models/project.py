@@ -126,7 +126,7 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
                     {"title": "Create Portfolio", "link": "?chapter=Portfolio&module=Create%20Portfolio&page=all"},
                 ]
             })
-        if any( plugin in ["backend", "visual"] for plugin in self.plugins):
+        if any(plugin in ["backend", "visual"] for plugin in self.plugins):
             nav = [{"title": "Overview", "link": "?chapter=Performance&module=Overview&page=overview", "active": True}]
             if "backend" in self.plugins:
                 nav.append({"title": "Backend", "link": "?chapter=Performance&module=Backend&page=list"})
@@ -135,8 +135,8 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
             nav.append({"title": "Results", "link": "?chapter=Performance&module=Results&page=reports"})
             nav.append({"title": "Thresholds", "link": "?chapter=Performance&module=Thresholds&page=thresholds"})
             chapters.append({"title": "Performance", "link": "?chapter=Performance", "nav": nav})
-        if any (plugin in ["cloud", "infra", "code", "application"] for plugin in self.plugins):
-            nav = [{"title": "Overview", "link": "?chapter=Security&module=Overview&page=overview", "active": True}]
+        if any(plugin in ["cloud", "infra", "code", "application"] for plugin in self.plugins):
+            nav = [{"title": "Overview", "link": "?chapter=Security&module=Overview&page=all", "active": True}]
             if "code" in self.plugins:
                 nav.append({"title": "Code", "link": "?chapter=Security&module=Code&page=list"})
             if "application" in self.plugins:
@@ -148,7 +148,7 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
             nav.append({"title": "Results", "link": "?chapter=Security&module=Results&page=all"})
             nav.append({"title": "Thresholds", "link": "?chapter=Security&module=Thresholds&page=all"})
             nav.append({"title": "Bug Bar", "link": "?chapter=Security&module=Bugbar&page=all"})
-            chapters.append({"title": "Security", "link": "?chapter=Security", "nav": nav})
+            chapters.append({"title": "Security", "link": "?chapter=Security&module=Overview&page=all", "nav": nav})
         return chapters
 
     def get_data_retention_limit(self) -> Optional[int]:
