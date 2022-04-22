@@ -19,7 +19,7 @@ from sqlalchemy.ext.mutable import MutableDict
 
 from ...shared.models.abstract_base import AbstractBaseMixin
 from ...shared.db_manager import Base
-from ...shared.connectors.auth import SessionProject, is_user_part_of_the_project, only_users_projects
+from ...shared.connectors.auth import SessionProject
 from ...shared.utils.rpc import RpcMixin
 
 
@@ -167,13 +167,13 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
     @staticmethod
     def get_or_404(project_id, exclude_fields=()):
         project = Project.query.get_or_404(project_id)
-        if not is_user_part_of_the_project(project.id):
-            abort(404, description="User not a part of project")
+        # if not is_user_part_of_the_project(project.id):
+        #     abort(404, description="User not a part of project")
         return project
 
     @staticmethod
     def list_projects(project_id=None, search_=None, limit_=None, offset_=None):
-        allowed_project_ids = only_users_projects()
+        # allowed_project_ids = only_users_projects()
         excluded_fields = Project.API_EXCLUDE_FIELDS + ('extended_out',)
         _filter = None
         if "all" not in allowed_project_ids:

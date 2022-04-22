@@ -17,7 +17,7 @@ from typing import Optional, Union, Tuple
 from datetime import datetime
 
 from ...shared.utils.api_utils import build_req_parser
-from ...shared.connectors.auth import (SessionProject, SessionUser, superadmin_required)
+from ...shared.connectors.auth import (SessionProject, SessionUser)
 from ...shared.utils.restApi import RestResource
 from ...shared.constants import (POST_PROCESSOR_PATH, CONTROL_TOWER_PATH, APP_IP, APP_HOST,
                                     EXTERNAL_LOKI_HOST, INFLUX_PORT, LOKI_PORT,
@@ -62,7 +62,6 @@ class ProjectAPI(RestResource):
         search_ = args["search"]
         return Project.list_projects(project_id, search_, limit_, offset_), 200
 
-    @superadmin_required
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         data = self._parser_post.parse_args()
         name_ = data["name"]
