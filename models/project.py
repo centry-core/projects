@@ -27,28 +27,35 @@ def user_is_project_admin():
     # this one need to be implemented in user permissions
     return True
 
+
 def user_is_project_contributor():
     # this one need to be implemented in user permissions
     return True
+
 
 def user_is_project_viewer():
     # this one need to be implemented in user permissions
     return True
 
+
 def whomai():
     # Get user name from session
     return "User"
+
 
 def get_project_integrations():
     # Get user name from project_intergations_config
     return ["rp", "ado", "email"]
 
+
 def get_user_projects():
     # List of groups/projects user is part of
     return [{"name": "PMI", "id": 1}, {"name": "Alfresco", "id": 2}, {"name": "Verifone 2Checkout", "id": 3}]
 
+
 def last_visited_chapter():
     return "Performance"
+
 
 def get_active_project():
     return SessionProject.get()

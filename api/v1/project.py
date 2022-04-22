@@ -11,59 +11,71 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-from json import dumps
+
+
+# from json import dumps
 from queue import Empty
 from typing import Optional, Union, Tuple
-from datetime import datetime
+# from datetime import datetime
+#
+from flask_restful import Resource
+from flask import request, make_response
+from tools import auth
 
-from ...shared.utils.api_utils import build_req_parser
-from ...shared.connectors.auth import (SessionProject, SessionUser)
-from ...shared.utils.restApi import RestResource
-from ...shared.constants import (POST_PROCESSOR_PATH, CONTROL_TOWER_PATH, APP_IP, APP_HOST,
-                                    EXTERNAL_LOKI_HOST, INFLUX_PORT, LOKI_PORT,
-                                    INFLUX_PASSWORD, INFLUX_USER, GF_API_KEY, RABBIT_USER,
-                                    RABBIT_PASSWORD, REDIS_PASSWORD)
+#
+# from ...shared.utils.api_utils import build_req_parser
+# from ...shared.connectors.auth import (SessionProject, SessionUser)
+# from ...shared.utils.restApi import RestResource
+# from ...shared.constants import (POST_PROCESSOR_PATH, CONTROL_TOWER_PATH, APP_IP, APP_HOST,
+#                                     EXTERNAL_LOKI_HOST, INFLUX_PORT, LOKI_PORT,
+#                                     INFLUX_PASSWORD, INFLUX_USER, GF_API_KEY, RABBIT_USER,
+#                                     RABBIT_PASSWORD, REDIS_PASSWORD)
+#
+# from ..connectors.influx import create_project_databases, drop_project_databases
+#
+from ...models.project import Project
+# from ..models.statistics import Statistic
+# from ..models import quota
 
-from ..connectors.influx import create_project_databases, drop_project_databases
 
-from ..models.project import Project
-from ..models.statistics import Statistic
-from ..models import quota
+class API(Resource):
+    def __init__(self, module):
+        self.module = module
+    # get_rules = (
+    #     dict(name="offset", type=int, default=None, location="args"),
+    #     dict(name="limit", type=int, default=None, location="args"),
+    #     dict(name="search", type=str, default="", location="args")
+    # )
+    # post_rules = (
+    #     dict(name="name", type=str, location="json"),
+    #     dict(name="owner", type=str, default=None, location="json"),
+    #     dict(name="plugins", type=list, default=None, location="json"),
+    #     dict(name="vuh_limit", type=int, default=500, location="json"),
+    #     dict(name="storage_space_limit", type=int, default=100, location="json"),
+    #     dict(name="data_retention_limit", type=int, default=30, location="json"),
+    #     dict(name="invitations", type=list, default=[], location="json"),
+    # )
+    #
+    # def __init__(self):
+    #     super().__init__()
+    #     self.__init_req_parsers()
 
+    # def __init_req_parsers(self):
+    #     self._parser_get = build_req_parser(rules=self.get_rules)
+    #     self._parser_post = build_req_parser(rules=self.post_rules)
 
-class ProjectAPI(RestResource):
-    get_rules = (
-        dict(name="offset", type=int, default=None, location="args"),
-        dict(name="limit", type=int, default=None, location="args"),
-        dict(name="search", type=str, default="", location="args")
-    )
-    post_rules = (
-        dict(name="name", type=str, location="json"),
-        dict(name="owner", type=str, default=None, location="json"),
-        dict(name="plugins", type=list, default=None, location="json"),
-        dict(name="vuh_limit", type=int, default=500, location="json"),
-        dict(name="storage_space_limit", type=int, default=100, location="json"),
-        dict(name="data_retention_limit", type=int, default=30, location="json"),
-        dict(name="invitations", type=list, default=[], location="json"),
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.__init_req_parsers()
-
-    def __init_req_parsers(self):
-        self._parser_get = build_req_parser(rules=self.get_rules)
-        self._parser_post = build_req_parser(rules=self.post_rules)
-
+    @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
-        args = self._parser_get.parse_args()
-        offset_ = args["offset"]
-        limit_ = args["limit"]
-        search_ = args["search"]
-        return Project.list_projects(project_id, search_, limit_, offset_), 200
+        # args = self._parser_get.parse_args()
+        offset_ = request.args["offset"]
+        limit_ = request.args["limit"]
+        search_ = request.args["search"]
+        return make_response(Project.list_projects(project_id, search_, limit_, offset_), 200)
 
+    @auth.decorators.check_api(['global_view'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
-        data = self._parser_post.parse_args()
+        # data = self._parser_post.parse_args()
+        data = request.json
         name_ = data["name"]
         owner_ = data["owner"]
         vuh_limit = data["vuh_limit"]
@@ -172,6 +184,7 @@ class ProjectAPI(RestResource):
         # set_grafana_datasources(project.id)
         return {"message": f"Project was successfully created"}, 200
 
+    @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         data = self._parser_post.parse_args()
         if not project_id:
@@ -186,6 +199,7 @@ class ProjectAPI(RestResource):
         project.commit()
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
 
+    @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
