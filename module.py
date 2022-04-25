@@ -22,9 +22,9 @@ from flask import request, render_template
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 
-from ..shared.utils.api_utils import add_resource_to_api
+# from ..shared.utils.api_utils import add_resource_to_api
+from tools import api_tools
 
-from .init_db import init_db
 
 
 class Module(module.ModuleModel):
@@ -37,16 +37,17 @@ class Module(module.ModuleModel):
     def init(self):
         """ Init module """
         log.info("Initializing module Projects")
+        from .init_db import init_db
         init_db()
-        from .api.project import ProjectAPI
-        from .api.projectsession import ProjectSessionAPI
-        from .api.statistics import StatisticAPI
-        from .api.quota import QuotaAPI
-        add_resource_to_api(self.context.api, ProjectAPI, "/project", "/project/<int:project_id>")
-        add_resource_to_api(self.context.api, ProjectSessionAPI, "/project-session",
-                            "/project-session/<int:project_id>")
-        add_resource_to_api(self.context.api, StatisticAPI, "/statistic/<int:project_id>")
-        add_resource_to_api(self.context.api, QuotaAPI, "/quota/<int:project_id>")
+        # from .api.project import ProjectAPI
+        # from .api.projectsession import ProjectSessionAPI
+        # from .api.statistics import StatisticAPI
+        # from .api.quota import QuotaAPI
+        # api_tools.add_resource_to_api(self.context.api, ProjectAPI, "/project", "/project/<int:project_id>")
+        # api_tools.add_resource_to_api(self.context.api, ProjectSessionAPI, "/project-session",
+        #                     "/project-session/<int:project_id>")
+        # api_tools.add_resource_to_api(self.context.api, StatisticAPI, "/statistic/<int:project_id>")
+        # api_tools.add_resource_to_api(self.context.api, QuotaAPI, "/quota/<int:project_id>")
 
         from .rpc_worker import (
             prj_or_404, list_projects, get_project_statistics, get_storage_quota,

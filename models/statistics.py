@@ -14,14 +14,15 @@
 
 from sqlalchemy import Column, Integer, String
 
-from ...shared.models.abstract_base import AbstractBaseMixin
-from ...shared.db_manager import Base
+# from ...shared.models.abstract_base import AbstractBaseMixin
+# from ...shared.db_manager import Base
+from tools import db, db_tools
 from ...shared.connectors.minio import MinioClient
 
 from .project import Project
 
 
-class Statistic(AbstractBaseMixin, Base):
+class Statistic(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "statistic"
 
     id = Column(Integer, primary_key=True)

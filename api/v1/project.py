@@ -13,29 +13,31 @@
 #     limitations under the License.
 
 
-# from json import dumps
+import json
+from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 # from datetime import datetime
 #
 from flask_restful import Resource
 from flask import request, make_response
+from pylon.core.tools import log
 from tools import auth
 
 #
 # from ...shared.utils.api_utils import build_req_parser
 # from ...shared.connectors.auth import (SessionProject, SessionUser)
 # from ...shared.utils.restApi import RestResource
-# from ...shared.constants import (POST_PROCESSOR_PATH, CONTROL_TOWER_PATH, APP_IP, APP_HOST,
-#                                     EXTERNAL_LOKI_HOST, INFLUX_PORT, LOKI_PORT,
-#                                     INFLUX_PASSWORD, INFLUX_USER, GF_API_KEY, RABBIT_USER,
-#                                     RABBIT_PASSWORD, REDIS_PASSWORD)
+from ....shared.constants import (POST_PROCESSOR_PATH, CONTROL_TOWER_PATH, APP_IP, APP_HOST,
+                                    EXTERNAL_LOKI_HOST, INFLUX_PORT, LOKI_PORT,
+                                    INFLUX_PASSWORD, INFLUX_USER, GF_API_KEY, RABBIT_USER,
+                                    RABBIT_PASSWORD, REDIS_PASSWORD)
 #
-# from ..connectors.influx import create_project_databases, drop_project_databases
+from ...connectors.influx import create_project_databases, drop_project_databases
 #
 from ...models.project import Project
-# from ..models.statistics import Statistic
-# from ..models import quota
+from ...models.statistics import Statistic
+from ...models.quota import ProjectQuota
 
 
 class API(Resource):
@@ -98,7 +100,7 @@ class API(Resource):
             ...
 
         # SessionProject.set(project.id)  # Looks weird, sorry :D
-        quota.create(project.id, vuh_limit, storage_space_limit, data_retention_limit)
+        ProjectQuota.create(project.id, vuh_limit, storage_space_limit, data_retention_limit)
 
         statistic = Statistic(
             project_id=project.id,
@@ -118,7 +120,7 @@ class API(Resource):
             "invoke_func": "lambda_function.lambda_handler",
             "runtime": "Python 3.7",
             "region": "default",
-            "env_vars": dumps({
+            "env_vars": json.dumps({
                 "jmeter_db": "{{secret.jmeter_db}}",
                 "gatling_db": "{{secret.gatling_db}}",
                 "comparison_db": "{{secret.comparison_db}}"
@@ -130,7 +132,7 @@ class API(Resource):
             "invoke_func": "lambda.handler",
             "runtime": "Python 3.7",
             "region": "default",
-            "env_vars": dumps({
+            "env_vars": json.dumps({
                 "token": "{{secret.auth_token}}",
                 "galloper_url": "{{secret.galloper_url}}",
                 "GALLOPER_WEB_HOOK": '{{secret.post_processor}}',
@@ -168,7 +170,7 @@ class API(Resource):
         try:
             project_vault_data = self.rpc.init_project_space(project.id)
         except:
-            self.logger.warning("Vault is not configured")
+            log.warning("Vault is not configured")
         project.secrets_json = {
             "vault_auth_role_id": project_vault_data["auth_role_id"],
             "vault_auth_secret_id": project_vault_data["auth_secret_id"],
@@ -182,11 +184,12 @@ class API(Resource):
         self.rpc.project_set_hidden_secrets(project.id, project_hidden_secrets)
         create_project_databases(project.id)
         # set_grafana_datasources(project.id)
-        return {"message": f"Project was successfully created"}, 200
+        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
 
     @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
-        data = self._parser_post.parse_args()
+        # data = self._parser_post.parse_args()
+        data = request.json
         if not project_id:
             return {"message": "Specify project id"}, 400
         project = Project.get_or_404(project_id)
@@ -197,11 +200,11 @@ class API(Resource):
         if data["plugins"]:
             project.plugins = data["plugins"]
         project.commit()
-        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
+        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200)
 
     @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
         self.rpc.remove_project_space(project_id)
-        return {"message": f"Project with id {project_id} was successfully deleted"}, 200
+        return make_response({"message": f"Project with id {project_id} was successfully deleted"}, 204)
