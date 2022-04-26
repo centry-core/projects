@@ -14,7 +14,7 @@
 
 from influxdb import InfluxDBClient
 
-from .secrets import get_project_hidden_secrets, get_project_secrets
+from .secrets_tools import get_project_hidden_secrets, get_project_secrets
 
 
 def get_client(project_id, db_name=None):

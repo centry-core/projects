@@ -19,10 +19,12 @@ from sqlalchemy.ext.mutable import MutableDict
 
 # from ...shared.models.abstract_base import AbstractBaseMixin
 # from ...shared.db_manager import Base
-from ...shared.connectors.auth import SessionProject
+# from ...shared.connectors.auth import SessionProject
 # from ...shared.utils.rpc import RpcMixin
 
-from tools import rpc_tools, db, db_tools
+from tools import rpc_tools, db, db_tools, MinioClient
+
+from ..tools.session_project import SessionProject
 
 
 def user_is_project_admin():
@@ -59,10 +61,6 @@ def last_visited_chapter():
     return "Performance"
 
 
-def get_active_project():
-    return SessionProject.get()
-
-
 class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     __tablename__ = "project"
 
@@ -90,7 +88,6 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         except Empty:
             ...
 
-        from ...shared.connectors.minio import MinioClient
         MinioClient(project=self).create_bucket(bucket="reports")
         MinioClient(project=self).create_bucket(bucket="tasks")
         SessionProject.set(self.id)
@@ -185,8 +182,8 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         # allowed_project_ids = only_users_projects()
         excluded_fields = Project.API_EXCLUDE_FIELDS + ('extended_out',)
         _filter = None
-        if "all" not in allowed_project_ids:
-            _filter = Project.id.in_(allowed_project_ids)
+        # if "all" not in allowed_project_ids:
+        #     _filter = Project.id.in_(allowed_project_ids)
         if project_id:
             project = Project.get_or_404(project_id)
             return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
