@@ -19,6 +19,9 @@ import jinja2  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
+# from pylon.core.tools.context import Context as Holder
+#
+# from .tools.session_project import SessionProject
 
 
 class Module(module.ModuleModel):
@@ -68,6 +71,8 @@ class Module(module.ModuleModel):
 
         self.descriptor.init_rpcs()
 
+        self.context.slot_manager.register_callback('before_request_hook', lambda payload: log.info('running slot for project'))
+        self.context.slot_manager.register_callback('before_request_hook', lambda payload: log.info('running slot for another plugin'))
 
 
     def deinit(self):  # pylint: disable=R0201
