@@ -15,14 +15,12 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timedelta
 
-from ...shared.models.abstract_base import AbstractBaseMixin
-from ...shared.db_manager import Base
-from ...shared.models.utils import utcnow
+from tools import db, db_tools, shared_utils
 
 from .statistics import Statistic
 
 
-class ProjectQuota(AbstractBaseMixin, Base):
+class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "project_quota"
 
     id = Column(Integer, primary_key=True)
@@ -30,7 +28,7 @@ class ProjectQuota(AbstractBaseMixin, Base):
     project_id = Column(Integer, unique=False, nullable=False)
     storage_space = Column(Integer, unique=False)
     data_retention_limit = Column(Integer, unique=False)
-    last_update_time = Column(DateTime, server_default=utcnow())
+    last_update_time = Column(DateTime, server_default=shared_utils.utcnow())
 
     dast_scans = Column(Integer, unique=False, default=-1)
 
@@ -77,20 +75,20 @@ class ProjectQuota(AbstractBaseMixin, Base):
             return ProjectQuota.check_quota(project_id, quota)
         return ProjectQuota.query.filter(ProjectQuota.project_id == project_id).first().to_json()
 
+    @staticmethod
+    def _update_quota(project_id, vuh_limit, storage_space, data_retention_limit):
+        quota = ProjectQuota.query.filter_by(project_id=project_id).first()
+        if quota:
+            quota.update(vuh_limit=vuh_limit, storage_space=storage_space, data_retention_limit=data_retention_limit)
+        else:
+            quota = ProjectQuota(project_id=project_id, vuh_limit=vuh_limit,
+                                 storage_space=storage_space, data_retention_limit=data_retention_limit)
+            quota.insert()
+        return quota
 
-def _update_quota(project_id, vuh_limit, storage_space, data_retention_limit):
-    quota = ProjectQuota.query.filter_by(project_id=project_id).first()
-    if quota:
-        quota.update(vuh_limit=vuh_limit, storage_space=storage_space, data_retention_limit=data_retention_limit)
-    else:
-        quota = ProjectQuota(project_id=project_id, vuh_limit=vuh_limit,
-                             storage_space=storage_space, data_retention_limit=data_retention_limit)
-        quota.insert()
-    return quota
-
-
-def create(project_id, vuh_limit, storage_space, data_retention_limit):
-    return _update_quota(project_id=project_id,
-                         vuh_limit=vuh_limit,
-                         storage_space=storage_space,
-                         data_retention_limit=data_retention_limit)
+    @staticmethod
+    def create(project_id, vuh_limit, storage_space, data_retention_limit):
+        return ProjectQuota._update_quota(project_id=project_id,
+                                          vuh_limit=vuh_limit,
+                                          storage_space=storage_space,
+                                          data_retention_limit=data_retention_limit)

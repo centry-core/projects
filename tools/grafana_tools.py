@@ -11,14 +11,15 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-
-from requests import post
 from copy import deepcopy
 
-from .secrets import get_project_secrets, get_project_hidden_secrets
+from requests import post
+
+from .secrets_tools import get_project_secrets, get_project_hidden_secrets
 
 
-DATASOURCE = {
+def set_grafana_datasources(project_id):
+    DATASOURCE = {
         "name": "",
         "type": "influxdb",
         "typeLogoUrl": "public/app/plugins/datasource/influxdb/img/influxdb_logo.svg",
@@ -28,17 +29,14 @@ DATASOURCE = {
         "user": "",
         "database": "",
         "jsonData": {"keepCookies": []},
-}
-
-
-def set_grafana_datasources(project_id):
+    }
     secrets = get_project_secrets(project_id)
     hidden_secrets = get_project_hidden_secrets(project_id)
     influx_user = secrets.get("influx_user") if "influx_user" in secrets else hidden_secrets.get("influx_user", "")
     influx_password = secrets.get("influx_password") if "influx_password" in secrets else \
         hidden_secrets.get("influx_password", "")
     grafana_api_key = secrets.get("gf_api_key") if "gf_api_key" in secrets else hidden_secrets.get("gf_api_key", "")
-    url = f"http://carrier-grafana:3000/grafana/api/datasources"
+    url = "http://carrier-grafana:3000/grafana/api/datasources"
     headers = {
         "Authorization": f"Bearer {grafana_api_key}",
         "Content-Type": "application/json"

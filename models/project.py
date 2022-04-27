@@ -17,44 +17,51 @@ from flask import abort
 from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_
 from sqlalchemy.ext.mutable import MutableDict
 
-from ...shared.models.abstract_base import AbstractBaseMixin
-from ...shared.db_manager import Base
-from ...shared.connectors.auth import SessionProject, is_user_part_of_the_project, only_users_projects
-from ...shared.utils.rpc import RpcMixin
+# from ...shared.models.abstract_base import AbstractBaseMixin
+# from ...shared.db_manager import Base
+# from ...shared.connectors.auth import SessionProject
+# from ...shared.utils.rpc import RpcMixin
+
+from tools import rpc_tools, db, db_tools, MinioClient
+
+from ..tools.session_project import SessionProject
 
 
 def user_is_project_admin():
     # this one need to be implemented in user permissions
     return True
 
+
 def user_is_project_contributor():
     # this one need to be implemented in user permissions
     return True
+
 
 def user_is_project_viewer():
     # this one need to be implemented in user permissions
     return True
 
+
 def whomai():
     # Get user name from session
     return "User"
+
 
 def get_project_integrations():
     # Get user name from project_intergations_config
     return ["rp", "ado", "email"]
 
+
 def get_user_projects():
     # List of groups/projects user is part of
     return [{"name": "PMI", "id": 1}, {"name": "Alfresco", "id": 2}, {"name": "Verifone 2Checkout", "id": 3}]
 
+
 def last_visited_chapter():
     return "Performance"
 
-def get_active_project():
-    return SessionProject.get()
 
-
-class Project(AbstractBaseMixin, RpcMixin, Base):
+class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     __tablename__ = "project"
 
     API_EXCLUDE_FIELDS = ("secrets_json", "worker_pool_config_json")
@@ -81,7 +88,6 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
         except Empty:
             ...
 
-        from ...shared.connectors.minio import MinioClient
         MinioClient(project=self).create_bucket(bucket="reports")
         MinioClient(project=self).create_bucket(bucket="tasks")
         SessionProject.set(self.id)
@@ -167,17 +173,17 @@ class Project(AbstractBaseMixin, RpcMixin, Base):
     @staticmethod
     def get_or_404(project_id, exclude_fields=()):
         project = Project.query.get_or_404(project_id)
-        if not is_user_part_of_the_project(project.id):
-            abort(404, description="User not a part of project")
+        # if not is_user_part_of_the_project(project.id):
+        #     abort(404, description="User not a part of project")
         return project
 
     @staticmethod
     def list_projects(project_id=None, search_=None, limit_=None, offset_=None):
-        allowed_project_ids = only_users_projects()
+        # allowed_project_ids = only_users_projects()
         excluded_fields = Project.API_EXCLUDE_FIELDS + ('extended_out',)
         _filter = None
-        if "all" not in allowed_project_ids:
-            _filter = Project.id.in_(allowed_project_ids)
+        # if "all" not in allowed_project_ids:
+        #     _filter = Project.id.in_(allowed_project_ids)
         if project_id:
             project = Project.get_or_404(project_id)
             return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200

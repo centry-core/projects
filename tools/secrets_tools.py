@@ -4,16 +4,17 @@ import requests
 from jinja2 import Template
 from flask import current_app
 
-from ...shared import constants as c
-from ...shared.connectors.vault import create_client, get_root_client
 
 from ..models.project import Project
+
+from tools import constants as c
+from tools import vault_tools
 
 
 def get_project_client(project_id):
     """ Get "project" Vault client instance """
     # Get Vault client
-    client = create_client()
+    client = vault_tools.create_client()
     # Get project from DB
     project = Project.query.get(project_id)
     # Auth to Vault
@@ -28,7 +29,7 @@ def get_project_client(project_id):
 def add_hidden_kv(project_id, client=None):
     # Create hidden secrets KV
     if not client:
-        client = get_root_client()
+        client = vault_tools.get_root_client()
     try:
         client.sys.enable_secrets_engine(
             backend_type="kv",
@@ -47,7 +48,7 @@ def add_hidden_kv(project_id, client=None):
 
 def set_hidden_kv_permissions(project_id, client=None):
     if not client:
-        client = get_root_client()
+        client = vault_tools.get_root_client()
     policy = """
         # Login with AppRole
         path "auth/approle/login" {
@@ -70,7 +71,7 @@ def set_hidden_kv_permissions(project_id, client=None):
 
 def initialize_project_space(project_id):
     """ Create project approle, policy and KV """
-    client = get_root_client()
+    client = vault_tools.get_root_client()
     # Create policy for project
     set_hidden_kv_permissions(project_id, client)
     # Create secrets KV
@@ -110,7 +111,7 @@ def initialize_project_space(project_id):
 
 def remove_project_space(project_id):
     """ Remove project-specific data from Vault """
-    client = get_root_client()
+    client = vault_tools.get_root_client()
     # Remove AppRole
     requests.delete(
         f"{c.VAULT_URL}/v1/auth/carrier-approle/role/role-for-{project_id}",
