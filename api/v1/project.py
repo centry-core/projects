@@ -32,6 +32,10 @@ from ...tools.influx_tools import create_project_databases, drop_project_databas
 class API(Resource):
     def __init__(self, module):
         self.module = module
+
+        # self.module.context
+
+
     # get_rules = (
     #     dict(name="offset", type=int, default=None, location="args"),
     #     dict(name="limit", type=int, default=None, location="args"),

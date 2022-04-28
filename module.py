@@ -19,7 +19,7 @@ import jinja2  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
-# from pylon.core.tools.context import Context as Holder
+from pylon.core.tools.context import Context as Holder
 #
 # from .tools.session_project import SessionProject
 
@@ -71,10 +71,19 @@ class Module(module.ModuleModel):
 
         self.descriptor.init_rpcs()
 
-        self.context.slot_manager.register_callback('before_request_hook', lambda payload: log.info('running slot for project'))
-        self.context.slot_manager.register_callback('before_request_hook', lambda payload: log.info('running slot for another plugin'))
+        # self.context.slot_manager.register_callback('before_request_hook', lambda context, slot, payload: log.info('running slot for project'))
+        # self.context.slot_manager.register_callback('before_request_hook', lambda context, slot, payload: log.info('running slot for another plugin'))
+
+        self.context.app.before_request(self._before_request_hook)
 
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
+
+    def _before_request_hook(self):  # pylint: disable=R0201
+        log.info('Project _before_request_hook')
+        flask.g.project = Holder()
+        #
+        from tools import config
+        flask.g.project.id = flask.session.get(config.PROJECT_CACHE_KEY)
