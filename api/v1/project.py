@@ -6,7 +6,7 @@ from flask_restful import Resource
 from flask import request, make_response
 from pylon.core.tools import log
 
-from tools import auth, constants as c
+from tools import auth, constants as c, secrets_tools
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -45,7 +45,7 @@ class API(Resource):
         project.insert()
 
         try:
-            self.rpc.timeout(5).project_keycloak_group_handler(project).send_invitations(invitations)
+            self.module.context.rpc_manager.call.timeout(5).project_keycloak_group_handler(project).send_invitations(invitations)
         except Empty:
             ...
 
@@ -76,7 +76,7 @@ class API(Resource):
                 "comparison_db": "{{secret.comparison_db}}"
             })
         }
-        pp = self.rpc.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
+        pp = self.module.context.rpc_manager.call.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
@@ -90,7 +90,7 @@ class API(Resource):
                 "loki_host": '{{secret.loki_host}}'
             })
         }
-        cc = self.rpc.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
+        cc = self.module.context.rpc_manager.call.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
         project_hidden_secrets["post_processor"] = f'{c.APP_HOST}{pp.webhook}'
@@ -118,7 +118,7 @@ class API(Resource):
             "auth_secret_id": ""
         }
         try:
-            project_vault_data = self.rpc.init_project_space(project.id)
+            project_vault_data = secrets_tools.init_project_space(project.id)
         except:
             log.warning("Vault is not configured")
         project.secrets_json = {
@@ -130,8 +130,8 @@ class API(Resource):
         }
         project.commit()
 
-        self.rpc.project_set_secrets(project.id, project_secrets)
-        self.rpc.project_set_hidden_secrets(project.id, project_hidden_secrets)
+        secrets_tools.set_project_secrets(project.id, project_secrets)
+        secrets_tools.set_project_hidden_secrets(project.id, project_hidden_secrets)
         create_project_databases(project.id)
         # set_grafana_datasources(project.id)
         return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
@@ -156,5 +156,5 @@ class API(Resource):
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
-        self.rpc.remove_project_space(project_id)
+        secrets_tools.remove_project_space(project_id)
         return make_response({"message": f"Project with id {project_id} was successfully deleted"}, 204)

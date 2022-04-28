@@ -35,9 +35,9 @@ class Module(module.ModuleModel):
         """ Init module """
         log.info("Initializing module Projects")
 
-        from .tools import session_project, secrets_tools, influx_tools, grafana_tools
+        from .tools import session_project, influx_tools, grafana_tools
         self.descriptor.register_tool('session_project', session_project)
-        self.descriptor.register_tool('secrets_tools', secrets_tools)
+        # self.descriptor.register_tool('secrets_tools', secrets_tools)
         self.descriptor.register_tool('influx_tools', influx_tools)
         self.descriptor.register_tool('grafana_tools', grafana_tools)
 
