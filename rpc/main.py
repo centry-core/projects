@@ -57,9 +57,9 @@ class RPC:
     def set_active_project(self, project_id: Union[str, int]):
         SessionProject.set(int(project_id))
 
-    @web.rpc('increment_statistics_dast', 'increment_statistics_dast')
+    @web.rpc('increment_statistics', 'increment_statistics')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def increment_statistics_dast(self, project_id):
+    def increment_statistics(self, project_id, column: str, amount: int = 1):
         statistic = Statistic.query.filter_by(project_id=project_id).first()
-        statistic.dast_scans += 1
+        setattr(statistic, column, getattr(statistic, column) + amount)
         statistic.commit()
