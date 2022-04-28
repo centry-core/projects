@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, make_response
 from flask_restful import Resource
 
 from ...models.quota import ProjectQuota
@@ -12,5 +12,5 @@ class API(Resource):
     def get(self, project_id: int):
         project = Project.get_or_404(project_id)
         args = request.args
-        return ProjectQuota.check_quota_json(project.id, args.get("quota"))
+        return make_response(ProjectQuota.check_quota_json(project.id, args.get("quota")), 200)
 

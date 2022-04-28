@@ -1,18 +1,3 @@
-#     Copyright 2020 getcarrier.io
-#
-#     Licensed under the Apache License, Version 2.0 (the "License");
-#     you may not use this file except in compliance with the License.
-#     You may obtain a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-#     Unless required by applicable law or agreed to in writing, software
-#     distributed under the License is distributed on an "AS IS" BASIS,
-#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#     See the License for the specific language governing permissions and
-#     limitations under the License.
-
-
 import json
 from datetime import datetime
 from queue import Empty
@@ -33,43 +18,15 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
-        # self.module.context
-
-
-    # get_rules = (
-    #     dict(name="offset", type=int, default=None, location="args"),
-    #     dict(name="limit", type=int, default=None, location="args"),
-    #     dict(name="search", type=str, default="", location="args")
-    # )
-    # post_rules = (
-    #     dict(name="name", type=str, location="json"),
-    #     dict(name="owner", type=str, default=None, location="json"),
-    #     dict(name="plugins", type=list, default=None, location="json"),
-    #     dict(name="vuh_limit", type=int, default=500, location="json"),
-    #     dict(name="storage_space_limit", type=int, default=100, location="json"),
-    #     dict(name="data_retention_limit", type=int, default=30, location="json"),
-    #     dict(name="invitations", type=list, default=[], location="json"),
-    # )
-    #
-    # def __init__(self):
-    #     super().__init__()
-    #     self.__init_req_parsers()
-
-    # def __init_req_parsers(self):
-    #     self._parser_get = build_req_parser(rules=self.get_rules)
-    #     self._parser_post = build_req_parser(rules=self.post_rules)
-
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
-        # args = self._parser_get.parse_args()
         offset_ = request.args["offset"]
         limit_ = request.args["limit"]
         search_ = request.args["search"]
         return make_response(Project.list_projects(project_id, search_, limit_, offset_), 200)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
-        # data = self._parser_post.parse_args()
         data = request.json
         name_ = data["name"]
         owner_ = data["owner"]
@@ -179,7 +136,7 @@ class API(Resource):
         # set_grafana_datasources(project.id)
         return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -195,7 +152,7 @@ class API(Resource):
         project.commit()
         return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
