@@ -2,12 +2,18 @@ from typing import Optional
 
 from flask import make_response
 from flask_restful import Resource
+from pylon.core.tools import log
 
 from ...models.project import Project
 from ...tools.session_project import SessionProject
 
 
 class API(Resource):
+    url_params = [
+        '',
+        '<int:project_id>',
+    ]
+
     def __init__(self, module):
         self.module = module
 
@@ -20,9 +26,10 @@ class API(Resource):
         return make_response({"message": "No project selected in session"}, 404)
 
     def post(self, project_id: int):
+        log.info('Session project POST pid: %s', project_id)
         project = Project.get_or_404(project_id)
         SessionProject.set(project.id)
-        return make_response(project.id, 200)
+        return make_response(str(project.id), 200)
 
     def delete(self, project_id: int):
         project = Project.get_or_404(project_id)

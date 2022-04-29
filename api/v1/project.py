@@ -3,7 +3,7 @@ from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, make_response
+from flask import request, make_response, g
 from pylon.core.tools import log
 
 from tools import auth, constants as c, secrets_tools
@@ -15,6 +15,11 @@ from ...tools.influx_tools import create_project_databases, drop_project_databas
 
 
 class API(Resource):
+    url_params = [
+        '',
+        '<int:project_id>',
+    ]
+
     def __init__(self, module):
         self.module = module
 
@@ -29,7 +34,8 @@ class API(Resource):
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         data = request.json
         name_ = data["name"]
-        owner_ = data["owner"]
+        # owner_ = data["owner"]
+        owner_ = str(g.auth.id)
         vuh_limit = data["vuh_limit"]
         plugins = data["plugins"]
         storage_space_limit = data["storage_space_limit"]
