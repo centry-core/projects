@@ -69,7 +69,7 @@ def set_hidden_kv_permissions(project_id, client=None):
     )
 
 
-def initialize_project_space(project_id):
+def init_project_space(project_id):
     """ Create project approle, policy and KV """
     client = vault_tools.get_root_client()
     # Create policy for project

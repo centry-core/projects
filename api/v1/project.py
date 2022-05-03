@@ -1,27 +1,12 @@
-#     Copyright 2020 getcarrier.io
-#
-#     Licensed under the Apache License, Version 2.0 (the "License");
-#     you may not use this file except in compliance with the License.
-#     You may obtain a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-#     Unless required by applicable law or agreed to in writing, software
-#     distributed under the License is distributed on an "AS IS" BASIS,
-#     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#     See the License for the specific language governing permissions and
-#     limitations under the License.
-
-
 import json
 from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, make_response
+from flask import request, make_response, g
 from pylon.core.tools import log
 
-from tools import auth, constants as c
+from tools import auth, constants as c, secrets_tools
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -30,45 +15,27 @@ from ...tools.influx_tools import create_project_databases, drop_project_databas
 
 
 class API(Resource):
+    url_params = [
+        '',
+        '<int:project_id>',
+    ]
+
     def __init__(self, module):
         self.module = module
-    # get_rules = (
-    #     dict(name="offset", type=int, default=None, location="args"),
-    #     dict(name="limit", type=int, default=None, location="args"),
-    #     dict(name="search", type=str, default="", location="args")
-    # )
-    # post_rules = (
-    #     dict(name="name", type=str, location="json"),
-    #     dict(name="owner", type=str, default=None, location="json"),
-    #     dict(name="plugins", type=list, default=None, location="json"),
-    #     dict(name="vuh_limit", type=int, default=500, location="json"),
-    #     dict(name="storage_space_limit", type=int, default=100, location="json"),
-    #     dict(name="data_retention_limit", type=int, default=30, location="json"),
-    #     dict(name="invitations", type=list, default=[], location="json"),
-    # )
-    #
-    # def __init__(self):
-    #     super().__init__()
-    #     self.__init_req_parsers()
 
-    # def __init_req_parsers(self):
-    #     self._parser_get = build_req_parser(rules=self.get_rules)
-    #     self._parser_post = build_req_parser(rules=self.post_rules)
-
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
-        # args = self._parser_get.parse_args()
         offset_ = request.args["offset"]
         limit_ = request.args["limit"]
         search_ = request.args["search"]
         return make_response(Project.list_projects(project_id, search_, limit_, offset_), 200)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
-        # data = self._parser_post.parse_args()
         data = request.json
         name_ = data["name"]
-        owner_ = data["owner"]
+        # owner_ = data["owner"]
+        owner_ = str(g.auth.id)
         vuh_limit = data["vuh_limit"]
         plugins = data["plugins"]
         storage_space_limit = data["storage_space_limit"]
@@ -84,7 +51,7 @@ class API(Resource):
         project.insert()
 
         try:
-            self.rpc.timeout(5).project_keycloak_group_handler(project).send_invitations(invitations)
+            self.module.context.rpc_manager.call.timeout(5).project_keycloak_group_handler(project).send_invitations(invitations)
         except Empty:
             ...
 
@@ -115,7 +82,7 @@ class API(Resource):
                 "comparison_db": "{{secret.comparison_db}}"
             })
         }
-        pp = self.rpc.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
+        pp = self.module.context.rpc_manager.call.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
@@ -129,7 +96,7 @@ class API(Resource):
                 "loki_host": '{{secret.loki_host}}'
             })
         }
-        cc = self.rpc.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
+        cc = self.module.context.rpc_manager.call.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
         project_hidden_secrets["post_processor"] = f'{c.APP_HOST}{pp.webhook}'
@@ -157,7 +124,7 @@ class API(Resource):
             "auth_secret_id": ""
         }
         try:
-            project_vault_data = self.rpc.init_project_space(project.id)
+            project_vault_data = secrets_tools.init_project_space(project.id)
         except:
             log.warning("Vault is not configured")
         project.secrets_json = {
@@ -169,13 +136,13 @@ class API(Resource):
         }
         project.commit()
 
-        self.rpc.project_set_secrets(project.id, project_secrets)
-        self.rpc.project_set_hidden_secrets(project.id, project_hidden_secrets)
+        secrets_tools.set_project_secrets(project.id, project_secrets)
+        secrets_tools.set_project_hidden_secrets(project.id, project_hidden_secrets)
         create_project_databases(project.id)
         # set_grafana_datasources(project.id)
         return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -191,9 +158,9 @@ class API(Resource):
         project.commit()
         return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200)
 
-    @auth.decorators.check_api(['global_view'])
+    # @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
-        self.rpc.remove_project_space(project_id)
+        secrets_tools.remove_project_space(project_id)
         return make_response({"message": f"Project with id {project_id} was successfully deleted"}, 204)

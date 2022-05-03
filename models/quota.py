@@ -15,7 +15,7 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timedelta
 
-from tools import db, db_tools, shared_utils
+from tools import db, db_tools, data_tools
 
 from .statistics import Statistic
 
@@ -28,7 +28,7 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     project_id = Column(Integer, unique=False, nullable=False)
     storage_space = Column(Integer, unique=False)
     data_retention_limit = Column(Integer, unique=False)
-    last_update_time = Column(DateTime, server_default=shared_utils.utcnow())
+    last_update_time = Column(DateTime, server_default=data_tools.utcnow())
 
     dast_scans = Column(Integer, unique=False, default=-1)
 

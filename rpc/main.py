@@ -56,3 +56,10 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def set_active_project(self, project_id: Union[str, int]):
         SessionProject.set(int(project_id))
+
+    @web.rpc('increment_statistics', 'increment_statistics')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def increment_statistics(self, project_id, column: str, amount: int = 1):
+        statistic = Statistic.query.filter_by(project_id=project_id).first()
+        setattr(statistic, column, getattr(statistic, column) + amount)
+        statistic.commit()
