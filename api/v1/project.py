@@ -3,7 +3,7 @@ from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, make_response, g
+from flask import request, g, make_response
 from pylon.core.tools import log
 
 from tools import auth, constants as c, secrets_tools
@@ -25,14 +25,17 @@ class API(Resource):
 
     # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
-        offset_ = request.args["offset"]
-        limit_ = request.args["limit"]
-        search_ = request.args["search"]
-        return make_response(Project.list_projects(project_id, search_, limit_, offset_), 200)
+        offset_ = request.args.get("offset")
+        limit_ = request.args.get("limit")
+        search_ = request.args.get("search")
+        return self.module.list(
+            offset_=offset_, limit_=limit_, search_=search_
+        ), 200
 
     # @auth.decorators.check_api(['global_view'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         log.info('request received')
+        log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         data = request.json
         name_ = data["name"]
         # owner_ = data["owner"]
@@ -53,7 +56,8 @@ class API(Resource):
         log.info('after project.insert()')
 
         try:
-            self.module.context.rpc_manager.call.timeout(2).project_keycloak_group_handler(project).send_invitations(invitations)
+            self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
+                invitations)
         except Empty:
             ...
 
@@ -150,7 +154,7 @@ class API(Resource):
         log.info('after create_project_databases')
 
         # set_grafana_datasources(project.id)
-        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
+        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     # @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
@@ -166,11 +170,11 @@ class API(Resource):
         if data["plugins"]:
             project.plugins = data["plugins"]
         project.commit()
-        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200)
+        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
     # @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
         secrets_tools.remove_project_space(project_id)
-        return make_response({"message": f"Project with id {project_id} was successfully deleted"}, 204)
+        return {"message": f"Project with id {project_id} was successfully deleted"}, 204
