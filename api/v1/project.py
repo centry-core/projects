@@ -3,7 +3,7 @@ from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, make_response, g
+from flask import request, g, make_response
 from pylon.core.tools import log
 
 from tools import auth, constants as c, secrets_tools
@@ -25,13 +25,17 @@ class API(Resource):
 
     # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
-        offset_ = request.args["offset"]
-        limit_ = request.args["limit"]
-        search_ = request.args["search"]
-        return make_response(Project.list_projects(project_id, search_, limit_, offset_), 200)
+        offset_ = request.args.get("offset")
+        limit_ = request.args.get("limit")
+        search_ = request.args.get("search")
+        return self.module.list(
+            offset_=offset_, limit_=limit_, search_=search_
+        ), 200
 
     # @auth.decorators.check_api(['global_view'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
+        log.info('request received')
+        log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         data = request.json
         name_ = data["name"]
         # owner_ = data["owner"]
@@ -49,15 +53,18 @@ class API(Resource):
         project_secrets = {}
         project_hidden_secrets = {}
         project.insert()
+        log.info('after project.insert()')
 
         try:
-            self.module.context.rpc_manager.call.timeout(5).project_keycloak_group_handler(project).send_invitations(invitations)
+            self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
+                invitations)
         except Empty:
             ...
 
+        log.info('after invitations sent')
         # SessionProject.set(project.id)  # Looks weird, sorry :D
         ProjectQuota.create(project.id, vuh_limit, storage_space_limit, data_retention_limit)
-
+        log.info('after quota created')
         statistic = Statistic(
             project_id=project.id,
             start_time=str(datetime.utcnow()),
@@ -70,7 +77,7 @@ class API(Resource):
             tasks_executions=0
         )
         statistic.insert()
-
+        log.info('after statistic created')
         pp_args = {
             "funcname": "post_processor",
             "invoke_func": "lambda_function.lambda_handler",
@@ -83,6 +90,7 @@ class API(Resource):
             })
         }
         pp = self.module.context.rpc_manager.call.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
+        log.info('after pp task created')
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
@@ -97,6 +105,7 @@ class API(Resource):
             })
         }
         cc = self.module.context.rpc_manager.call.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
+        log.info('after cc task created')
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
         project_hidden_secrets["post_processor"] = f'{c.APP_HOST}{pp.webhook}'
@@ -127,6 +136,7 @@ class API(Resource):
             project_vault_data = secrets_tools.init_project_space(project.id)
         except:
             log.warning("Vault is not configured")
+        log.info('after init_project space')
         project.secrets_json = {
             "vault_auth_role_id": project_vault_data["auth_role_id"],
             "vault_auth_secret_id": project_vault_data["auth_secret_id"],
@@ -137,10 +147,14 @@ class API(Resource):
         project.commit()
 
         secrets_tools.set_project_secrets(project.id, project_secrets)
+        log.info('after set_project_secrets')
         secrets_tools.set_project_hidden_secrets(project.id, project_hidden_secrets)
+        log.info('after set_project_hidden_secrets')
         create_project_databases(project.id)
+        log.info('after create_project_databases')
+
         # set_grafana_datasources(project.id)
-        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201)
+        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     # @auth.decorators.check_api(['global_view'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
@@ -156,11 +170,11 @@ class API(Resource):
         if data["plugins"]:
             project.plugins = data["plugins"]
         project.commit()
-        return make_response(project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200)
+        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
     # @auth.decorators.check_api(['global_view'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
         secrets_tools.remove_project_space(project_id)
-        return make_response({"message": f"Project with id {project_id} was successfully deleted"}, 204)
+        return {"message": f"Project with id {project_id} was successfully deleted"}, 204

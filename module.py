@@ -21,7 +21,7 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 from pylon.core.tools.context import Context as Holder
 #
-# from .tools.session_project import SessionProject
+# from tools import config
 
 
 class Module(module.ModuleModel):
@@ -36,7 +36,7 @@ class Module(module.ModuleModel):
         log.info("Initializing module Projects")
 
         from .tools import session_project, influx_tools, grafana_tools, secrets_tools
-        self.descriptor.register_tool('session_project', session_project)
+        self.descriptor.register_tool('session_project', session_project.SessionProject)
         self.descriptor.register_tool('influx_tools', influx_tools)
         self.descriptor.register_tool('grafana_tools', grafana_tools)
         self.descriptor.register_tool('secrets_tools', secrets_tools)
@@ -76,14 +76,19 @@ class Module(module.ModuleModel):
 
         self.context.app.before_request(self._before_request_hook)
 
-
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
 
-    def _before_request_hook(self):  # pylint: disable=R0201
-        log.info('Project _before_request_hook')
+    def _before_request_hook(self):
+
+
+        # # todo: remove:
+        from .tools.session_project import SessionProject
+        # SessionProject.set(1)
+        # # todo: remove:
+
+
         flask.g.project = Holder()
-        #
-        from tools import config
-        flask.g.project.id = flask.session.get(config.PROJECT_CACHE_KEY)
+        # flask.g.project.id = flask.session.get(config.PROJECT_CACHE_KEY)
+        flask.g.project.id = SessionProject.get()

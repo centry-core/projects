@@ -19,8 +19,8 @@ class RPC:
 
     @web.rpc('project_list', 'list')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def list_projects(self):
-        return Project.list_projects()
+    def list_projects(self, **kwargs):
+        return Project.list_projects(**kwargs)
 
     @web.rpc('project_statistics', 'statistics')
     @rpc_tools.wrap_exceptions(RuntimeError)
