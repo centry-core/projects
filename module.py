@@ -76,6 +76,8 @@ class Module(module.ModuleModel):
 
         self.context.app.before_request(self._before_request_hook)
 
+        # self.descriptor.register_tool('projects', self)
+
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
@@ -87,8 +89,10 @@ class Module(module.ModuleModel):
         from .tools.session_project import SessionProject
         # SessionProject.set(1)
         # # todo: remove:
-
-
         flask.g.project = Holder()
         # flask.g.project.id = flask.session.get(config.PROJECT_CACHE_KEY)
         flask.g.project.id = SessionProject.get()
+        # from .models.project import Project
+        # flask.g.project = Project.query.filter(
+        #     Project.id == SessionProject.get()
+        # ).first()
