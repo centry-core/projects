@@ -47,9 +47,9 @@ def whomai():
     return "User"
 
 
-def get_project_integrations():
-    # Get user name from project_intergations_config
-    return ["rp", "ado", "email"]
+# def get_project_integrations():
+#     # Get user name from project_intergations_config
+#     return ["rp", "ado", "email"]
 
 
 def get_user_projects():
@@ -103,7 +103,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
             json_data["chapters"] = self.compile_chapters()
             json_data["username"] = whomai()
             json_data["projects"] = self.list_projects(offset_=0)
-            json_data["integrations"] = get_project_integrations()
+            # json_data["integrations"] = get_project_integrations()
             json_data["regions"] = self.worker_pool_config_json.get("regions", ["default"])
             json_data["default_chapter"] = last_visited_chapter()
         return json_data
