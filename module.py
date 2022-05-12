@@ -44,35 +44,9 @@ class Module(module.ModuleModel):
         from .init_db import init_db
         init_db()
 
-        # from .api.project import ProjectAPI
-        # from .api.projectsession import ProjectSessionAPI
-        # from .api.statistics import StatisticAPI
-        # from .api.quota import QuotaAPI
-        # api_tools.add_resource_to_api(self.context.api, ProjectAPI, "/project", "/project/<int:project_id>")
-        # api_tools.add_resource_to_api(self.context.api, ProjectSessionAPI, "/project-session",
-        #                     "/project-session/<int:project_id>")
-        # api_tools.add_resource_to_api(self.context.api, StatisticAPI, "/statistic/<int:project_id>")
-        # api_tools.add_resource_to_api(self.context.api, QuotaAPI, "/quota/<int:project_id>")
-
         self.descriptor.init_api()
 
-        # from .rpc_worker import (
-        #     prj_or_404, list_projects, get_project_statistics, get_storage_quota,
-        #     check_quota, add_task_execution, set_active_project, get_project_id,
-        # )
-        # self.context.rpc_manager.register_function(prj_or_404, name='project_get_or_404')
-        # self.context.rpc_manager.register_function(list_projects, name='project_list')
-        # self.context.rpc_manager.register_function(get_project_statistics, name='project_statistics')
-        # self.context.rpc_manager.register_function(add_task_execution)
-        # self.context.rpc_manager.register_function(get_storage_quota, name='project_get_storage_space_quota')
-        # self.context.rpc_manager.register_function(check_quota, name='project_check_quota')
-        # self.context.rpc_manager.register_function(set_active_project, name='set_active_project')
-        # self.context.rpc_manager.register_function(get_project_id, name='get_project_id')
-
         self.descriptor.init_rpcs()
-
-        # self.context.slot_manager.register_callback('before_request_hook', lambda context, slot, payload: log.info('running slot for project'))
-        # self.context.slot_manager.register_callback('before_request_hook', lambda context, slot, payload: log.info('running slot for another plugin'))
 
         self.context.app.before_request(self._before_request_hook)
 
