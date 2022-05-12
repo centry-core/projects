@@ -52,9 +52,9 @@ def whomai():
 #     return ["rp", "ado", "email"]
 
 
-def get_user_projects():
-    # List of groups/projects user is part of
-    return [{"name": "PMI", "id": 1}, {"name": "Alfresco", "id": 2}, {"name": "Verifone 2Checkout", "id": 3}]
+# def get_user_projects():
+#     # List of groups/projects user is part of
+#     return [{"name": "PMI", "id": 1}, {"name": "Alfresco", "id": 2}, {"name": "Verifone 2Checkout", "id": 3}]
 
 
 def last_visited_chapter():

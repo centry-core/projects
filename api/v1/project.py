@@ -3,7 +3,7 @@ from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, g, make_response
+from flask import request, g
 from pylon.core.tools import log
 
 from tools import auth, constants as c, secrets_tools

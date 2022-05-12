@@ -83,16 +83,5 @@ class Module(module.ModuleModel):
         log.info("De-initializing module")
 
     def _before_request_hook(self):
-
-
-        # # todo: remove:
-        from .tools.session_project import SessionProject
-        # SessionProject.set(1)
-        # # todo: remove:
         flask.g.project = Holder()
-        # flask.g.project.id = flask.session.get(config.PROJECT_CACHE_KEY)
-        flask.g.project.id = SessionProject.get()
-        # from .models.project import Project
-        # flask.g.project = Project.query.filter(
-        #     Project.id == SessionProject.get()
-        # ).first()
+        flask.g.project.id = self.get_id()  # comes from RPC
