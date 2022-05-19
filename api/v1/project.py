@@ -3,7 +3,7 @@ from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
 from flask_restful import Resource
-from flask import request, g
+from flask import request, g, make_response
 from pylon.core.tools import log
 
 from tools import auth, constants as c, secrets_tools
@@ -25,14 +25,18 @@ class API(Resource):
 
     # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
+        if g.auth.id is None:
+            return list(), 200
+        #
         offset_ = request.args.get("offset")
         limit_ = request.args.get("limit")
         search_ = request.args.get("search")
-        return self.module.list(
-            offset_=offset_, limit_=limit_, search_=search_
+        #
+        return self.module.list_user_projects(
+            g.auth.id, offset_=offset_, limit_=limit_, search_=search_
         ), 200
 
-    # @auth.decorators.check_api(['global_view'])
+    @auth.decorators.check_api(['global_admin'])
     def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         log.info('request received')
         log.info('do we have an rpc? %s', self.module.context.rpc_manager)
@@ -54,6 +58,56 @@ class API(Resource):
         project_hidden_secrets = {}
         project.insert()
         log.info('after project.insert()')
+
+        #
+        # Auth: create project scope
+        #
+        scope_map = {item["name"]:item["id"] for item in auth.list_scopes()}
+        scope_name = f"Project-{project.id}"
+        #
+        if scope_name not in scope_map:
+            scope_id = auth.add_scope(scope_name, parent_id=1)
+            log.info("Created project scope: %s -> %s", scope_name, scope_id)
+        else:
+            scope_id = scope_map[scope_name]
+
+        #
+        # Auth: create project user
+        #
+        user_map = {item["name"]:item["id"] for item in auth.list_users()}
+        user_name = f":Carrier:Project:{project.id}:"
+        user_email = f"{project.id}@special.carrier.project.user"
+        #
+        if user_name not in user_map:
+            user_id = auth.add_user(user_email, user_name)
+            auth.add_user_permission(user_id, scope_id, "project_member")
+        else:
+            user_id = user_map[user_name]
+
+        #
+        # Auth: add project token
+        #
+        all_tokens = auth.list_tokens(user_id)
+        #
+        if len(all_tokens) < 1:
+            token_id = auth.add_token(
+                user_id, "api",
+                # expires=datetime.datetime.now()+datetime.timedelta(seconds=30),
+            )
+        else:
+            token_id = all_tokens[0]["id"]
+        #
+        current_permissions = auth.resolve_permissions(
+            scope_id, auth_data=g.auth
+        )
+        #
+        for permission in current_permissions:
+            try:
+                auth.add_token_permission(token_id, scope_id, permission)
+            except:  # pylint: disable=W0702
+                pass
+        #
+        token = auth.encode_token(token_id)
 
         try:
             self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
@@ -108,6 +162,7 @@ class API(Resource):
         log.info('after cc task created')
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
+        project_secrets["auth_token"] = token
         project_hidden_secrets["post_processor"] = f'{c.APP_HOST}{pp.webhook}'
         project_hidden_secrets["post_processor_id"] = pp.task_id
         project_hidden_secrets["redis_host"] = c.APP_IP
@@ -156,7 +211,7 @@ class API(Resource):
         # set_grafana_datasources(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
-    # @auth.decorators.check_api(['global_view'])
+    @auth.decorators.check_api(['global_admin'])
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -172,7 +227,7 @@ class API(Resource):
         project.commit()
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
-    # @auth.decorators.check_api(['global_view'])
+    @auth.decorators.check_api(['global_admin'])
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
