@@ -12,6 +12,7 @@ from ...models.project import Project
 from ...models.statistics import Statistic
 from ...models.quota import ProjectQuota
 from ...tools.influx_tools import create_project_databases, drop_project_databases
+from ...tools.rabbit_tools import create_project_user_and_vhost
 
 
 class API(Resource):
@@ -160,6 +161,24 @@ class API(Resource):
         }
         cc = self.module.context.rpc_manager.call.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
         log.info('after cc task created')
+        rabbit_queue_checker_args = {
+            "funcname": "rabbit_queue_checker",
+            "invoke_func": "lambda.handler",
+            "runtime": "Python 3.7",
+            "region": "default",
+            "env_vars": json.dumps({
+                "token": "{{secret.auth_token}}",
+                "galloper_url": "{{secret.galloper_url}}",
+                "project_id": '{{secret.project_id}}',
+                "rabbit_host": '{{secret.rabbit_host}}',
+                "rabbit_project_user": '{{secret.rabbit_project_user}}',
+                "rabbit_project_password": '{{secret.rabbit_project_password}}',
+                "rabbit_project_vhost": '{{secret.rabbit_project_vhost}}'
+            })
+        }
+        rabbit_queue_checker = self.module.context.rpc_manager.call.task_create(project, c.RABBIT_TASK_PATH,
+                                                                                rabbit_queue_checker_args)
+        log.info('after rabbit_scheduler task created')
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
         project_secrets["auth_token"] = token
@@ -175,6 +194,7 @@ class API(Resource):
         project_hidden_secrets["rabbit_user"] = c.RABBIT_USER
         project_hidden_secrets["rabbit_password"] = c.RABBIT_PASSWORD
         project_hidden_secrets["control_tower_id"] = cc.task_id
+        project_hidden_secrets["rabbit_queue_validator_id"] = rabbit_queue_checker.task_id
         project_hidden_secrets["influx_user"] = c.INFLUX_USER
         project_hidden_secrets["influx_password"] = c.INFLUX_PASSWORD
         project_hidden_secrets["jmeter_db"] = f'jmeter_{project.id}'
@@ -205,8 +225,17 @@ class API(Resource):
         log.info('after set_project_secrets')
         secrets_tools.set_project_hidden_secrets(project.id, project_hidden_secrets)
         log.info('after set_project_hidden_secrets')
+        create_project_user_and_vhost(project.id)
+        log.info('after create_project_user_and_vhost')
         create_project_databases(project.id)
         log.info('after create_project_databases')
+
+        self.module.context.rpc_manager.call.create_rabbit_schedule(f"rabbit_queue_scheduler_for_project_{project.id}",
+                                                                    project.id)
+        schedules = self.module.context.rpc_manager.call.get_schedules()
+        if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
+            self.module.context.rpc_manager.call.create_rabbit_schedule(f"rabbit_public_queue_scheduler", project.id,
+                                                                        rabbit_queue_checker.task_id)
 
         # set_grafana_datasources(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
