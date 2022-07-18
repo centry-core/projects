@@ -173,7 +173,8 @@ class API(Resource):
                 "rabbit_host": '{{secret.rabbit_host}}',
                 "rabbit_project_user": '{{secret.rabbit_project_user}}',
                 "rabbit_project_password": '{{secret.rabbit_project_password}}',
-                "rabbit_project_vhost": '{{secret.rabbit_project_vhost}}'
+                "rabbit_project_vhost": '{{secret.rabbit_project_vhost}}',
+                "AWS_LAMBDA_FUNCTION_TIMEOUT": 120
             })
         }
         rabbit_queue_checker = self.module.context.rpc_manager.call.task_create(project, c.RABBIT_TASK_PATH,
@@ -234,6 +235,7 @@ class API(Resource):
                                                                     project.id)
         schedules = self.module.context.rpc_manager.call.get_schedules()
         if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
+            self.module.context.rpc_manager.call.check_rabbit_queues(project.id, rabbit_queue_checker.task_id)
             self.module.context.rpc_manager.call.create_rabbit_schedule(f"rabbit_public_queue_scheduler", project.id,
                                                                         rabbit_queue_checker.task_id)
 
