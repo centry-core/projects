@@ -142,6 +142,7 @@ class API(Resource):
                 "influx_host": "{{secret.influx_ip}}",
                 "influx_user": "{{secret.influx_user}}",
                 "influx_password": "{{secret.influx_password}}",
+                "remove_row_data": "true",
                 "jmeter_db": "{{secret.jmeter_db}}",
                 "gatling_db": "{{secret.gatling_db}}",
                 "comparison_db": "{{secret.comparison_db}}"
