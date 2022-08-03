@@ -139,6 +139,9 @@ class API(Resource):
             "runtime": "Python 3.7",
             "region": "default",
             "env_vars": json.dumps({
+                "influx_host": "{{secret.influx_ip}}",
+                "influx_user": "{{secret.influx_user}}",
+                "influx_password": "{{secret.influx_password}}",
                 "jmeter_db": "{{secret.jmeter_db}}",
                 "gatling_db": "{{secret.gatling_db}}",
                 "comparison_db": "{{secret.comparison_db}}"
