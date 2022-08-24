@@ -89,10 +89,10 @@ class RPC:
 
     @web.rpc('get_rabbit_queues', 'get_rabbit_queues')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_rabbit_queues(self, vhost) -> dict:
+    def get_rabbit_queues(self, vhost):
         _rc = redis.Redis(host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
                           password=constants.REDIS_PASSWORD, username=constants.REDIS_USER)
         try:
             return json.loads(_rc.get(name=vhost))
         except TypeError:
-            return {}
+            return []
