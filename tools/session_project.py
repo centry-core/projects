@@ -16,3 +16,4 @@ class SessionProject:
     @staticmethod
     def get() -> Optional[int]:
         return session.get(config.PROJECT_CACHE_KEY)
+

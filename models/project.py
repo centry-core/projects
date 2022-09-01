@@ -25,6 +25,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from tools import rpc_tools, db, db_tools, MinioClient
 
 from ..tools.session_project import SessionProject
+from ..tools.session_plugins import SessionProjectPlugin
 
 
 def user_is_project_admin():
@@ -91,6 +92,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         MinioClient(project=self).create_bucket(bucket="reports")
         MinioClient(project=self).create_bucket(bucket="tasks")
         SessionProject.set(self.id)
+        # SessionProjectPlugin.set(self.plugins)
 
     def used_in_session(self):
         selected_id = SessionProject.get()

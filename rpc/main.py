@@ -54,6 +54,13 @@ class RPC:
         #     project_id = get_user_projects()[0]["id"]
         return project_id
 
+    @web.rpc('project_get_plugins', 'get_plugins')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_plugins(self):
+        project_id = SessionProject.get()
+        project = Project.query.get(project_id)
+        return project.plugins if project else tuple()
+
     @web.rpc('project_set_active', 'set_active')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def set_active(self, project_id: Union[str, int]):

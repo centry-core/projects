@@ -13,7 +13,7 @@ from ...models.statistics import Statistic
 from ...models.quota import ProjectQuota
 from ...tools.influx_tools import create_project_databases, drop_project_databases
 from ...tools.rabbit_tools import create_project_user_and_vhost
-
+from ...tools.session_plugins import SessionProjectPlugin
 
 class API(Resource):
     url_params = [
@@ -59,6 +59,8 @@ class API(Resource):
         project_hidden_secrets = {}
         project.insert()
         log.info('after project.insert()')
+
+        SessionProjectPlugin.set(project.plugins)
 
         #
         # Auth: create project scope
