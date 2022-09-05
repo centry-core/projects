@@ -1,11 +1,13 @@
 from typing import Optional
 
-from flask import make_response
+from flask import make_response, g
 from flask_restful import Resource
 from pylon.core.tools import log
 
 from ...models.project import Project
 from ...tools.session_project import SessionProject
+from ...tools.session_plugins import SessionProjectPlugin
+
 
 
 class API(Resource):
@@ -29,10 +31,12 @@ class API(Resource):
         log.info('Session project POST pid: %s', project_id)
         project = Project.get_or_404(project_id)
         SessionProject.set(project.id)
+        SessionProjectPlugin.set(project.plugins)
         return make_response(str(project.id), 200)
 
     def delete(self, project_id: int):
         project = Project.get_or_404(project_id)
         if SessionProject.get() == project.id:
             SessionProject.pop()
+            SessionProjectPlugin.pop()
         return make_response('ok', 204)
