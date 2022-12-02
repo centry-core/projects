@@ -89,8 +89,8 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         except Empty:
             ...
 
-        MinioClient(project=self).create_bucket(bucket="reports")
-        MinioClient(project=self).create_bucket(bucket="tasks")
+        MinioClient(project=self).create_bucket(bucket="reports", bucket_type='system')
+        MinioClient(project=self).create_bucket(bucket="tasks", bucket_type='system')
         SessionProject.set(self.id)
         # SessionProjectPlugin.set(self.plugins)
 
