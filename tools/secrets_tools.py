@@ -1,3 +1,5 @@
+from typing import Optional
+
 import hvac
 import requests
 
@@ -11,7 +13,7 @@ from tools import constants as c
 from tools import vault_tools
 
 
-def get_project_client(project_id):
+def get_project_client(project_id: int):
     """ Get "project" Vault client instance """
     # Get Vault client
     client = vault_tools.create_client()
@@ -26,7 +28,7 @@ def get_project_client(project_id):
     return client
 
 
-def add_hidden_kv(project_id, client=None):
+def add_hidden_kv(project_id: int, client=None):
     # Create hidden secrets KV
     if not client:
         client = vault_tools.get_root_client()
@@ -109,7 +111,7 @@ def init_project_space(project_id):
     }
 
 
-def remove_project_space(project_id):
+def remove_project_space(project_id: int):
     """ Remove project-specific data from Vault """
     client = vault_tools.get_root_client()
     # Remove AppRole
@@ -131,7 +133,7 @@ def remove_project_space(project_id):
     )
 
 
-def set_project_secrets(project_id, secrets):
+def set_project_secrets(project_id: int, secrets: dict):
     """ Set project secrets """
     client = get_project_client(project_id)
     client.secrets.kv.v2.create_or_update_secret(
@@ -141,7 +143,7 @@ def set_project_secrets(project_id, secrets):
     )
 
 
-def set_project_hidden_secrets(project_id, secrets):
+def set_project_hidden_secrets(project_id: int, secrets: dict):
     """ Set project hidden secrets """
     try:
         client = get_project_client(project_id)
@@ -156,7 +158,7 @@ def set_project_hidden_secrets(project_id, secrets):
         return set_project_secrets(project_id, secrets)
 
 
-def get_project_secrets(project_id):
+def get_project_secrets(project_id: int):
     """ Get project secrets """
     client = get_project_client(project_id)
     return client.secrets.kv.v2.read_secret_version(
@@ -165,7 +167,7 @@ def get_project_secrets(project_id):
     ).get("data", dict()).get("data", dict())
 
 
-def get_project_hidden_secrets(project_id):
+def get_project_hidden_secrets(project_id: int):
     """ Get project hidden secrets """
     client = get_project_client(project_id)
     try:
@@ -179,7 +181,7 @@ def get_project_hidden_secrets(project_id):
         return {}
 
 
-def unsecret(value, secrets=None, project_id=None):
+def unsecret(value, secrets: Optional[dict] = None, project_id: Optional[int] = None):
     if not secrets:
         secrets = get_project_secrets(project_id)
         hidden_secrets = get_project_hidden_secrets(project_id)
