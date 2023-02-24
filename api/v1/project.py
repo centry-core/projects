@@ -246,6 +246,7 @@ class API(Resource):
                                                                         rabbit_queue_checker.task_id)
 
         # set_grafana_datasources(project.id)
+        self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     @auth.decorators.check_api(['global_admin'])
