@@ -12,16 +12,18 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from .secrets_tools import get_project_hidden_secrets, get_project_secrets, set_project_secrets
 from rabbitmq_admin import AdminAPI
 import random
 import string
 from pylon.core.tools import log
 
+from tools import VaultClient
 
-def create_project_user_and_vhost(project_id):
-    secrets = get_project_secrets(project_id)
-    hidden_secrets = get_project_hidden_secrets(project_id)
+
+def create_project_user_and_vhost(project_id: int):
+    vault_client = VaultClient.from_project(project_id)
+    secrets = vault_client.get_project_secrets()
+    hidden_secrets = vault_client.get_project_hidden_secrets()
 
     # connect to RabbitMQ management api
     rabbit_api = AdminAPI(url=f'http://carrier-rabbit:15672',
@@ -40,7 +42,7 @@ def create_project_user_and_vhost(project_id):
     secrets["rabbit_project_user"] = user
     secrets["rabbit_project_password"] = password
     secrets["rabbit_project_vhost"] = vhost
-    set_project_secrets(project_id, secrets)
+    vault_client.set_project_secrets(secrets)
 
 
 def password_generator(length=16):

@@ -11,15 +11,16 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+from typing import Optional
 
 from influxdb import InfluxDBClient
+from tools import VaultClient
 
-from .secrets_tools import get_project_hidden_secrets, get_project_secrets
 
-
-def get_client(project_id, db_name=None):
-    secrets = get_project_secrets(project_id)
-    hidden_secrets = get_project_hidden_secrets(project_id)
+def get_client(project_id: int, db_name: Optional[str] = None):
+    vault_client = VaultClient.from_project(project_id)
+    secrets = vault_client.get_project_secrets()
+    hidden_secrets = vault_client.get_project_hidden_secrets()
     influx_host = secrets.get("influx_ip") if "influx_ip" in secrets else hidden_secrets.get("influx_ip", "")
     influx_user = secrets.get("influx_user") if "influx_user" in secrets else hidden_secrets.get("influx_user", "")
     influx_password = secrets.get("influx_password") if "influx_password" in secrets else \
@@ -28,8 +29,9 @@ def get_client(project_id, db_name=None):
     return InfluxDBClient(influx_host, 8086, influx_user, influx_password, db_name)
 
 
-def create_project_databases(project_id):
-    hidden_secrets = get_project_hidden_secrets(project_id)
+def create_project_databases(project_id: int):
+    vault_client = VaultClient.from_project(project_id)
+    hidden_secrets = vault_client.get_project_hidden_secrets()
     db_list = [hidden_secrets.get("jmeter_db"), hidden_secrets.get("gatling_db"), hidden_secrets.get("comparison_db"),
                hidden_secrets.get("telegraf_db")]
     client = get_client(project_id)
@@ -37,8 +39,9 @@ def create_project_databases(project_id):
         client.query(f"create database {each} with duration 180d replication 1 shard duration 7d name autogen")
 
 
-def drop_project_databases(project_id):
-    hidden_secrets = get_project_hidden_secrets(project_id)
+def drop_project_databases(project_id: int):
+    vault_client = VaultClient.from_project(project_id)
+    hidden_secrets = vault_client.get_project_hidden_secrets()
     db_list = [hidden_secrets.get("jmeter_db"), hidden_secrets.get("gatling_db"), hidden_secrets.get("comparison_db"),
                hidden_secrets.get("telegraf_db")]
     client = get_client(project_id)

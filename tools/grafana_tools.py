@@ -15,10 +15,10 @@ from copy import deepcopy
 
 from requests import post
 
-from .secrets_tools import get_project_secrets, get_project_hidden_secrets
+from tools import VaultClient
 
 
-def set_grafana_datasources(project_id):
+def set_grafana_datasources(project_id: int):
     DATASOURCE = {
         "name": "",
         "type": "influxdb",
@@ -30,8 +30,9 @@ def set_grafana_datasources(project_id):
         "database": "",
         "jsonData": {"keepCookies": []},
     }
-    secrets = get_project_secrets(project_id)
-    hidden_secrets = get_project_hidden_secrets(project_id)
+    vault_client = VaultClient.from_project(project_id)
+    secrets = vault_client.get_project_secrets()
+    hidden_secrets = vault_client.get_project_hidden_secrets()
     influx_user = secrets.get("influx_user") if "influx_user" in secrets else hidden_secrets.get("influx_user", "")
     influx_password = secrets.get("influx_password") if "influx_password" in secrets else \
         hidden_secrets.get("influx_password", "")

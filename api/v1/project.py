@@ -6,7 +6,7 @@ from flask_restful import Resource
 from flask import request, g, make_response
 from pylon.core.tools import log
 
-from tools import auth, constants as c, secrets_tools
+from tools import auth, constants as c, VaultClient
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -14,6 +14,7 @@ from ...models.quota import ProjectQuota
 from ...tools.influx_tools import create_project_databases, drop_project_databases
 from ...tools.rabbit_tools import create_project_user_and_vhost
 from ...tools.session_plugins import SessionProjectPlugin
+
 
 class API(Resource):
     url_params = [
@@ -26,6 +27,7 @@ class API(Resource):
 
     # @auth.decorators.check_api(['global_view'])
     def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
+        log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
             return list(), 200
         #
@@ -42,14 +44,34 @@ class API(Resource):
         log.info('request received')
         log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         data = request.json
-        name_ = data["name"]
+        errors = []
+        try:
+            name_ = data["name"]
+            if not name_:
+                errors.append('project_name')
+        except KeyError:
+            errors.append('project_name')
+        try:
+            project_admin_email = request.json['project_admin_email']
+            if not project_admin_email:
+                errors.append('project_admin_email')
+        except KeyError:
+            errors.append('project_admin_email')
+
+        if errors:
+            return {
+                "loc": errors,
+                "msg": "field required",
+                "type": "value_error.missing"
+            }, 400
+
         # owner_ = data["owner"]
         owner_ = str(g.auth.id)
         vuh_limit = data["vuh_limit"]
         plugins = data["plugins"]
         storage_space_limit = data["storage_space_limit"]
         data_retention_limit = data["data_retention_limit"]
-        invitations = data['invitations']
+        # invitations = data['invitations']
         project = Project(
             name=name_,
             plugins=plugins,
@@ -65,7 +87,7 @@ class API(Resource):
         #
         # Auth: create project scope
         #
-        scope_map = {item["name"]:item["id"] for item in auth.list_scopes()}
+        scope_map = {item["name"]: item["id"] for item in auth.list_scopes()}
         scope_name = f"Project-{project.id}"
         #
         if scope_name not in scope_map:
@@ -77,7 +99,7 @@ class API(Resource):
         #
         # Auth: create project user
         #
-        user_map = {item["name"]:item["id"] for item in auth.list_users()}
+        user_map = {item["name"]: item["id"] for item in auth.list_users()}
         user_name = f":Carrier:Project:{project.id}:"
         user_email = f"{project.id}@special.carrier.project.user"
         #
@@ -112,13 +134,24 @@ class API(Resource):
         #
         token = auth.encode_token(token_id)
 
-        try:
-            self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
-                invitations)
-        except Empty:
-            ...
+        # invite user to project here
+        # self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
+        #     invitations)
+        # try:
+        #     self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
+        #         invitations)
+        # except Empty:
+        #     ...
 
-        log.info('after invitations sent')
+        permission_name = 'project_admin'
+        # permission_name = 'global_admin'
+        try:
+            invited_user_id = [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
+        except IndexError:
+            invited_user_id = auth.add_user(project_admin_email, '')
+        auth.add_user_permission(invited_user_id, scope_id, permission_name)
+        # log.info('after invitations sent')
+
         # SessionProject.set(project.id)  # Looks weird, sorry :D
         ProjectQuota.create(project.id, vuh_limit, storage_space_limit, data_retention_limit)
         log.info('after quota created')
@@ -214,8 +247,9 @@ class API(Resource):
             "auth_role_id": "",
             "auth_secret_id": ""
         }
+        vault_client = VaultClient.from_project(project.id)
         try:
-            project_vault_data = secrets_tools.init_project_space(project.id)
+            project_vault_data = vault_client.init_project_space()
         except:
             log.warning("Vault is not configured")
         log.info('after init_project space')
@@ -228,9 +262,9 @@ class API(Resource):
         }
         project.commit()
 
-        secrets_tools.set_project_secrets(project.id, project_secrets)
+        vault_client.set_project_secrets(project_secrets)
         log.info('after set_project_secrets')
-        secrets_tools.set_project_hidden_secrets(project.id, project_hidden_secrets)
+        vault_client.set_project_hidden_secrets(project_hidden_secrets)
         log.info('after set_project_hidden_secrets')
         create_project_user_and_vhost(project.id)
         log.info('after create_project_user_and_vhost')
@@ -269,5 +303,6 @@ class API(Resource):
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
-        secrets_tools.remove_project_space(project_id)
+        vault_client = VaultClient.from_project(project_id)
+        vault_client.remove_project_space()
         return {"message": f"Project with id {project_id} was successfully deleted"}, 204

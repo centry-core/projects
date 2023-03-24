@@ -21,7 +21,7 @@ class RPC:
             log.info("Project scope id: %s", project_scope_id)
             log.info("Project permissions: %s", project_permissions)
             #
-            if "global_admin" in root_permissions or "project_member" in project_permissions:
+            if "global_admin" in root_permissions or "project_member" in project_permissions or 'project_admin' in project_permissions:
                 user_projects.append(project)
         #
         return user_projects
