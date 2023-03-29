@@ -271,8 +271,10 @@ class API(Resource):
         create_project_databases(project.id)
         log.info('after create_project_databases')
 
-        self.module.context.rpc_manager.call.create_rabbit_schedule(f"rabbit_queue_scheduler_for_project_{project.id}",
-                                                                    project.id)
+        self.module.context.rpc_manager.call.create_rabbit_schedule(
+            f"rabbit_queue_scheduler_for_project_{project.id}",
+            project.id
+        )
         schedules = self.module.context.rpc_manager.call.get_schedules()
         if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
             self.module.context.rpc_manager.call.check_rabbit_queues(project.id, rabbit_queue_checker.task_id)

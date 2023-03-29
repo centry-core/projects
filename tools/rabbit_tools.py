@@ -20,6 +20,22 @@ from pylon.core.tools import log
 from tools import VaultClient
 
 
+def password_generator(length=16):
+    # create alphanumerical from string constants
+    letters = string.ascii_letters
+    numbers = string.digits
+    printable = f'{letters}{numbers}'
+
+    # convert printable from string to list and shuffle
+    printable = list(printable)
+    random.shuffle(printable)
+
+    # generate random password and convert to string
+    random_password = random.choices(printable, k=length)
+    random_password = ''.join(random_password)
+    return random_password
+
+
 def create_project_user_and_vhost(project_id: int):
     vault_client = VaultClient.from_project(project_id)
     secrets = vault_client.get_project_secrets()
@@ -44,18 +60,3 @@ def create_project_user_and_vhost(project_id: int):
     secrets["rabbit_project_vhost"] = vhost
     vault_client.set_project_secrets(secrets)
 
-
-def password_generator(length=16):
-    # create alphanumerical from string constants
-    letters = string.ascii_letters
-    numbers = string.digits
-    printable = f'{letters}{numbers}'
-
-    # convert printable from string to list and shuffle
-    printable = list(printable)
-    random.shuffle(printable)
-
-    # generate random password and convert to string
-    random_password = random.choices(printable, k=length)
-    random_password = ''.join(random_password)
-    return random_password
