@@ -5,8 +5,9 @@ from typing import Optional, Union, Tuple
 from flask_restful import Resource
 from flask import request, g, make_response
 from pylon.core.tools import log
+from sqlalchemy import schema
 
-from tools import auth, constants as c, VaultClient, TaskManager
+from tools import auth, constants as c, VaultClient, TaskManager, db
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -14,6 +15,8 @@ from ...models.quota import ProjectQuota
 from ...tools.influx_tools import create_project_databases, drop_project_databases
 from ...tools.rabbit_tools import create_project_user_and_vhost
 from ...tools.session_plugins import SessionProjectPlugin
+
+PROJECT_ROLE_NAME = 'project'
 
 
 class API(Resource):
@@ -26,7 +29,8 @@ class API(Resource):
         self.module = module
 
     # @auth.decorators.check_api(['global_view'])
-    def get(self, project_id: Optional[int] = None) -> Union[Tuple[dict, int], Tuple[list, int]]:
+    def get(self, project_id: Optional[int] = None) -> Union[
+        Tuple[dict, int], Tuple[list, int]]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
             return list(), 200
@@ -84,7 +88,23 @@ class API(Resource):
 
         SessionProjectPlugin.set(project.plugins)
 
+        # Create project schema
+        with db.with_project_schema_session(project.id) as tenant_db:
+            tenant_db.execute(schema.CreateSchema(f"Project-{project.id}"))
+            db.get_tenant_specific_metadata().create_all(bind=tenant_db.connection())
+            tenant_db.commit()
+        log.info("Project schema created")
 
+        project_roles = auth.get_roles(mode=PROJECT_ROLE_NAME)
+        project_permissions = auth.get_permissions(mode=PROJECT_ROLE_NAME)
+
+        for role in project_roles:
+            self.module.context.rpc_manager.call.add_role(project.id, role["name"])
+
+        for permission in project_permissions:
+            self.module.context.rpc_manager.call.set_permission_for_role(
+                project.id, permission['name'], permission["permission"]
+            )
 
         #
         # Auth: create project scope
@@ -151,10 +171,16 @@ class API(Resource):
         permission_name = 'project_admin'
         # permission_name = 'global_admin'
         try:
-            invited_user_id = [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
+            invited_user_id = \
+                [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
         except IndexError:
             invited_user_id = auth.add_user(project_admin_email, '')
         auth.add_user_permission(invited_user_id, scope_id, permission_name)
+
+        self.module.context.rpc_manager.call.add_user_to_project(
+            project.id, invited_user_id, 'admin'
+        )
+
         # log.info('after invitations sent')
 
         # SessionProject.set(project.id)  # Looks weird, sorry :D
@@ -216,7 +242,6 @@ class API(Resource):
         #     project.id
         # )
 
-        # todo: ask why is it here
         # schedules = self.module.context.rpc_manager.call.get_schedules()
         # if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
             # self.module.context.rpc_manager.call.check_rabbit_queues(
