@@ -129,54 +129,54 @@ class API(Resource):
         else:
             scope_id = scope_map[scope_name]
 
-            #
-            # Auth: create project admin
-            #
-            user_map = {item["name"]: item["id"] for item in auth.list_users()}
-            if project_admin_email in user_map:
-                self.module.context.rpc_manager.call.add_user_to_project(
-                    project.id, user_map[project_admin_email], 'admin'
-                )
-            else:
-                token = self.module.context.rpc_manager.call.auth_manager_get_token()
-                user_data = {
-                    "username": project_admin_email,
-                    "email": project_admin_email,
-                    "enabled": True,
-                    "totp": False,
-                    "emailVerified": False,
-                    "disableableCredentialTypes": [],
-                    "requiredActions": ["UPDATE_PASSWORD"],
-                    "notBefore": 0,
-                    "access": {
-                        "manageGroupMembership": True,
-                        "view": True,
-                        "mapRoles": True,
-                        "impersonate": True,
-                        "manage": True
-                    },
-                    "credentials": [{
-                        "type": "password",
-                        "value": "11111111",
-                        "temporary": True
+        #
+        # Auth: create project admin
+        #
+        user_map = {item["name"]: item["id"] for item in auth.list_users()}
+        if project_admin_email in user_map:
+            self.module.context.rpc_manager.call.add_user_to_project(
+                project.id, user_map[project_admin_email], 'admin'
+            )
+        else:
+            token = self.module.context.rpc_manager.call.auth_manager_get_token()
+            user_data = {
+                "username": project_admin_email,
+                "email": project_admin_email,
+                "enabled": True,
+                "totp": False,
+                "emailVerified": False,
+                "disableableCredentialTypes": [],
+                "requiredActions": ["UPDATE_PASSWORD"],
+                "notBefore": 0,
+                "access": {
+                    "manageGroupMembership": True,
+                    "view": True,
+                    "mapRoles": True,
+                    "impersonate": True,
+                    "manage": True
+                },
+                "credentials": [{
+                    "type": "password",
+                    "value": "11111111",
+                    "temporary": True
 
-                    }, ]
-                }
-                user = self.module.context.rpc_manager.call.auth_manager_create_user_representation(
-                    user_data=user_data
-                )
-                self.module.context.rpc_manager.call.auth_manager_post_user(realm='carrier',
-                                                                            token=token,
-                                                                            entity=user
-                                                                            )
+                }, ]
+            }
+            user = self.module.context.rpc_manager.call.auth_manager_create_user_representation(
+                user_data=user_data
+            )
+            self.module.context.rpc_manager.call.auth_manager_post_user(realm='carrier',
+                                                                        token=token,
+                                                                        entity=user
+                                                                        )
 
-                user_id = auth.add_user(project_admin_email, project_admin_email)
-                #
-                auth.add_user_provider(user_id, project_admin_email)
-                auth.add_user_group(user_id, 1)
-                self.module.context.rpc_manager.call.add_user_to_project(
-                    project.id, user_id, 'admin'
-                )
+            user_id = auth.add_user(project_admin_email, project_admin_email)
+            #
+            auth.add_user_provider(user_id, project_admin_email)
+            auth.add_user_group(user_id, 1)
+            self.module.context.rpc_manager.call.add_user_to_project(
+                project.id, user_id, 'admin'
+            )
 
         def create_project_user(project_id: int) -> int:
             # Auth: create project user
