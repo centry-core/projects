@@ -32,9 +32,12 @@ class RPC:
     @web.rpc('projects_add_task_execution', 'add_task_execution')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def add_task_execution(self, project_id):
-        statistic = Statistic.query.filter_by(project_id=project_id).first()
-        setattr(statistic, 'tasks_executions', Statistic.tasks_executions + 1)
-        statistic.commit()
+        try:
+            statistic = Statistic.query.filter_by(project_id=project_id).first()
+            setattr(statistic, 'tasks_executions', Statistic.tasks_executions + 1)
+            statistic.commit()
+        except AttributeError:
+            ...
 
     @web.rpc('project_get_storage_space_quota', 'get_storage_space_quota')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -73,13 +76,11 @@ class RPC:
         setattr(statistic, column, getattr(statistic, column) + amount)
         statistic.commit()
 
-    @web.rpc('update_rabbit_queues', 'update_rabbit_queues')
-    @rpc_tools.wrap_exceptions(RuntimeError)
-    def update_rabbit_queues(self, vhost, queues):
-        _rc = redis.Redis(host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
-                          password=constants.REDIS_PASSWORD, username=constants.REDIS_USER)
-        _rc.set(name=vhost, value=queues)
-        return f"Project queues updated"
+    # @web.rpc('update_rabbit_queues', 'update_rabbit_queues')
+    # @rpc_tools.wrap_exceptions(RuntimeError)
+    # def update_rabbit_queues(self, vhost, queues):
+    #
+    #     return f"Project queues updated"
 
     @web.rpc('register_rabbit_queue', 'register_rabbit_queue')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -96,10 +97,22 @@ class RPC:
 
     @web.rpc('get_rabbit_queues', 'get_rabbit_queues')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_rabbit_queues(self, vhost):
-        _rc = redis.Redis(host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
-                          password=constants.REDIS_PASSWORD, username=constants.REDIS_USER)
+    def get_rabbit_queues(self, vhost: str, remove_internal: bool = False) -> list:
+        _rc = redis.Redis(
+            host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
+            password=constants.REDIS_PASSWORD, username=constants.REDIS_USER
+        )
+        log.info('get_rabbit_queues vhost: [%s]', vhost,)
         try:
-            return json.loads(_rc.get(name=vhost))
+            # log.info('get_rabbit_queues vhost: [%s], RC.get %s', vhost, _rc.get(name=vhost))
+            queues = json.loads(_rc.get(name=vhost))
+            log.info('get_rabbit_queues vhost: [%s], queues: [%s]', vhost, queues)
         except TypeError:
             return []
+        if remove_internal:
+            try:
+                queues.remove('__internal')
+            except ValueError:
+                ...
+        return queues
+

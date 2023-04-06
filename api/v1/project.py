@@ -6,7 +6,7 @@ from flask_restful import Resource
 from flask import request, g, make_response
 from pylon.core.tools import log
 
-from tools import auth, constants as c, VaultClient
+from tools import auth, constants as c, VaultClient, TaskManager
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -84,6 +84,8 @@ class API(Resource):
 
         SessionProjectPlugin.set(project.plugins)
 
+
+
         #
         # Auth: create project scope
         #
@@ -96,43 +98,46 @@ class API(Resource):
         else:
             scope_id = scope_map[scope_name]
 
-        #
-        # Auth: create project user
-        #
-        user_map = {item["name"]: item["id"] for item in auth.list_users()}
-        user_name = f":Carrier:Project:{project.id}:"
-        user_email = f"{project.id}@special.carrier.project.user"
-        #
-        if user_name not in user_map:
-            user_id = auth.add_user(user_email, user_name)
-            auth.add_user_permission(user_id, scope_id, "project_member")
-        else:
-            user_id = user_map[user_name]
-
-        #
-        # Auth: add project token
-        #
-        all_tokens = auth.list_tokens(user_id)
-        #
-        if len(all_tokens) < 1:
-            token_id = auth.add_token(
-                user_id, "api",
-                # expires=datetime.datetime.now()+datetime.timedelta(seconds=30),
-            )
-        else:
-            token_id = all_tokens[0]["id"]
-        #
-        current_permissions = auth.resolve_permissions(
-            scope_id, auth_data=g.auth
-        )
-        #
-        for permission in current_permissions:
+        def create_project_user(project_id: int) -> int:
+            # Auth: create project user
+            user_map = {i["name"]: i["id"] for i in auth.list_users()}
+            user_name = f":Carrier:Project:{project_id}:"
+            user_email = f"{project_id}@special.carrier.project.user"
+            #
             try:
-                auth.add_token_permission(token_id, scope_id, permission)
-            except:  # pylint: disable=W0702
-                pass
-        #
-        token = auth.encode_token(token_id)
+                return user_map[user_name]
+            except KeyError:
+                user_id = auth.add_user(user_email, user_name)
+                auth.add_user_permission(user_id, scope_id, "project_member")
+                return user_id
+
+        user_id = create_project_user(project_id=project.id)
+
+        def add_project_token(user_id: int) -> str:
+            # Auth: add project token
+            all_tokens = auth.list_tokens(user_id)
+            #
+            if len(all_tokens) < 1:
+                token_id = auth.add_token(
+                    user_id, "api",
+                    # expires=datetime.datetime.now()+datetime.timedelta(seconds=30),
+                )
+            else:
+                token_id = all_tokens[0]["id"]
+            #
+            current_permissions = auth.resolve_permissions(
+                scope_id, auth_data=g.auth
+            )
+            #
+            for permission in current_permissions:
+                try:
+                    auth.add_token_permission(token_id, scope_id, permission)
+                except:  # pylint: disable=W0702
+                    pass
+            #
+            return auth.encode_token(token_id)
+
+        token = add_project_token(user_id)
 
         # invite user to project here
         # self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
@@ -168,89 +173,24 @@ class API(Resource):
         )
         statistic.insert()
         log.info('after statistic created')
-        pp_args = {
-            "funcname": "post_processor",
-            "invoke_func": "lambda_function.lambda_handler",
-            "runtime": "Python 3.7",
-            "region": "default",
-            "env_vars": json.dumps({
-                "influx_host": "{{secret.influx_ip}}",
-                "influx_user": "{{secret.influx_user}}",
-                "influx_password": "{{secret.influx_password}}",
-                "remove_row_data": "false",
-                "jmeter_db": "{{secret.jmeter_db}}",
-                "gatling_db": "{{secret.gatling_db}}",
-                "comparison_db": "{{secret.comparison_db}}"
-            })
-        }
-        pp = self.module.context.rpc_manager.call.task_create(project, c.POST_PROCESSOR_PATH, pp_args)
-        log.info('after pp task created')
-        cc_args = {
-            "funcname": "control_tower",
-            "invoke_func": "lambda.handler",
-            "runtime": "Python 3.7",
-            "region": "default",
-            "env_vars": json.dumps({
-                "token": "{{secret.auth_token}}",
-                "galloper_url": "{{secret.galloper_url}}",
-                "GALLOPER_WEB_HOOK": '{{secret.post_processor}}',
-                "project_id": '{{secret.project_id}}',
-                "loki_host": '{{secret.loki_host}}'
-            })
-        }
-        cc = self.module.context.rpc_manager.call.task_create(project, c.CONTROL_TOWER_PATH, cc_args)
-        log.info('after cc task created')
-        rabbit_queue_checker_args = {
-            "funcname": "rabbit_queue_checker",
-            "invoke_func": "lambda.handler",
-            "runtime": "Python 3.7",
-            "region": "default",
-            "env_vars": json.dumps({
-                "token": "{{secret.auth_token}}",
-                "galloper_url": "{{secret.galloper_url}}",
-                "project_id": '{{secret.project_id}}',
-                "rabbit_host": '{{secret.rabbit_host}}',
-                "rabbit_project_user": '{{secret.rabbit_project_user}}',
-                "rabbit_project_password": '{{secret.rabbit_project_password}}',
-                "rabbit_project_vhost": '{{secret.rabbit_project_vhost}}',
-                "AWS_LAMBDA_FUNCTION_TIMEOUT": 120
-            })
-        }
-        rabbit_queue_checker = self.module.context.rpc_manager.call.task_create(project, c.RABBIT_TASK_PATH,
-                                                                                rabbit_queue_checker_args)
-        log.info('after rabbit_scheduler task created')
+
         project_secrets["galloper_url"] = c.APP_HOST
         project_secrets["project_id"] = project.id
         project_secrets["auth_token"] = token
-        project_hidden_secrets["post_processor"] = f'{c.APP_HOST}{pp.webhook}'
-        project_hidden_secrets["post_processor_id"] = pp.task_id
-        project_hidden_secrets["redis_host"] = c.APP_IP
-        project_hidden_secrets["loki_host"] = c.EXTERNAL_LOKI_HOST.replace("https://", "http://")
-        project_hidden_secrets["influx_ip"] = c.APP_IP
-        project_hidden_secrets["influx_port"] = c.INFLUX_PORT
-        project_hidden_secrets["loki_port"] = c.LOKI_PORT
-        project_hidden_secrets["redis_password"] = c.REDIS_PASSWORD
-        project_hidden_secrets["rabbit_host"] = c.APP_IP
-        project_hidden_secrets["rabbit_user"] = c.RABBIT_USER
-        project_hidden_secrets["rabbit_password"] = c.RABBIT_PASSWORD
-        project_hidden_secrets["control_tower_id"] = cc.task_id
-        project_hidden_secrets["rabbit_queue_validator_id"] = rabbit_queue_checker.task_id
-        project_hidden_secrets["influx_user"] = c.INFLUX_USER
-        project_hidden_secrets["influx_password"] = c.INFLUX_PASSWORD
+
         project_hidden_secrets["jmeter_db"] = f'jmeter_{project.id}'
         project_hidden_secrets["gatling_db"] = f'gatling_{project.id}'
         project_hidden_secrets["comparison_db"] = f'comparison_{project.id}'
         project_hidden_secrets["telegraf_db"] = f'telegraf_{project.id}'
-        project_hidden_secrets["gf_api_key"] = c.GF_API_KEY
 
-        project_vault_data = {
-            "auth_role_id": "",
-            "auth_secret_id": ""
-        }
         vault_client = VaultClient.from_project(project.id)
         try:
             project_vault_data = vault_client.init_project_space()
         except:
+            project_vault_data = {
+                "auth_role_id": "",
+                "auth_secret_id": ""
+            }
             log.warning("Vault is not configured")
         log.info('after init_project space')
         project.secrets_json = {
@@ -271,17 +211,26 @@ class API(Resource):
         create_project_databases(project.id)
         log.info('after create_project_databases')
 
-        self.module.context.rpc_manager.call.create_rabbit_schedule(
-            f"rabbit_queue_scheduler_for_project_{project.id}",
-            project.id
-        )
-        schedules = self.module.context.rpc_manager.call.get_schedules()
-        if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
-            self.module.context.rpc_manager.call.check_rabbit_queues(project.id, rabbit_queue_checker.task_id)
-            self.module.context.rpc_manager.call.create_rabbit_schedule(f"rabbit_public_queue_scheduler", project.id,
-                                                                        rabbit_queue_checker.task_id)
+        # self.module.context.rpc_manager.call.create_rabbit_schedule(
+        #     f"rabbit_queue_scheduler_for_project_{project.id}",
+        #     project.id
+        # )
+
+        # todo: ask why is it here
+        # schedules = self.module.context.rpc_manager.call.get_schedules()
+        # if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
+            # self.module.context.rpc_manager.call.check_rabbit_queues(
+            #     project.id,
+            #     rabbit_queue_checker.task_id
+            # )
+            # self.module.context.rpc_manager.call.create_rabbit_schedule(
+            #     f"rabbit_public_queue_scheduler",
+            #     project.id,
+            #     rabbit_queue_checker.task_id
+            # )
 
         # set_grafana_datasources(project.id)
+        self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
         self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 

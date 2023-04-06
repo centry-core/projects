@@ -53,6 +53,8 @@ class Module(module.ModuleModel):
 
         # self.descriptor.register_tool('projects', self)
 
+        # rabbit_tools.create_administration_user_and_vhost()
+
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
