@@ -6,5 +6,5 @@ def init_db():
     from .models.quota import ProjectQuota
     from .models.statistics import Statistic
 
-    db.Base.metadata.create_all(bind=db.engine)
+    db.get_shared_metadata().create_all(bind=db.engine)
 
