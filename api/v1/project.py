@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from queue import Empty
 from typing import Optional, Union, Tuple
@@ -48,6 +49,10 @@ class API(Resource):
         log.info('request received')
         log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         data = request.json
+
+        #
+        # Validate incoming data
+        #
         errors = []
         try:
             name_ = data["name"]
@@ -59,9 +64,15 @@ class API(Resource):
             project_admin_email = request.json['project_admin_email']
             if not project_admin_email:
                 errors.append('project_admin_email')
+            if not re.match(r"^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,4})+$",
+                            project_admin_email):
+                return {
+                    "loc": ['project_admin_email', ],
+                    "msg": "email is not valid",
+                    "type": "value_error.not_allowed"
+                }, 400
         except KeyError:
             errors.append('project_admin_email')
-
         if errors:
             return {
                 "loc": errors,
@@ -119,9 +130,57 @@ class API(Resource):
             scope_id = scope_map[scope_name]
 
         #
-        # Auth: create project user
+        # Auth: create project admin
         #
         user_map = {item["name"]: item["id"] for item in auth.list_users()}
+        if project_admin_email in user_map:
+            self.module.context.rpc_manager.call.add_user_to_project(
+                project.id, user_map[project_admin_email], 'admin'
+            )
+        else:
+            token = self.module.context.rpc_manager.call.auth_manager_get_token()
+            user_data = {
+                "username": project_admin_email,
+                "email": project_admin_email,
+                "enabled": True,
+                "totp": False,
+                "emailVerified": False,
+                "disableableCredentialTypes": [],
+                "requiredActions": ["UPDATE_PASSWORD"],
+                "notBefore": 0,
+                "access": {
+                    "manageGroupMembership": True,
+                    "view": True,
+                    "mapRoles": True,
+                    "impersonate": True,
+                    "manage": True
+                },
+                "credentials": [{
+                    "type": "password",
+                    "value": "11111111",
+                    "temporary": True
+
+                }, ]
+            }
+            user = self.module.context.rpc_manager.call.auth_manager_create_user_representation(
+                user_data=user_data
+            )
+            self.module.context.rpc_manager.call.auth_manager_post_user(realm='carrier',
+                                                                        token=token,
+                                                                        entity=user
+                                                                        )
+
+            user_id = auth.add_user(project_admin_email, project_admin_email)
+            #
+            auth.add_user_provider(user_id, project_admin_email)
+            auth.add_user_group(user_id, 1)
+            self.module.context.rpc_manager.call.add_user_to_project(
+                project.id, user_id, 'admin'
+            )
+
+            #
+        # Auth: create project user
+        #
         user_name = f":Carrier:Project:{project.id}:"
         user_email = f"{project.id}@special.carrier.project.user"
         #
@@ -165,18 +224,18 @@ class API(Resource):
         # except Empty:
         #     ...
 
-        permission_name = 'project_admin'
-        # permission_name = 'global_admin'
-        try:
-            invited_user_id = \
-                [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
-        except IndexError:
-            invited_user_id = auth.add_user(project_admin_email, '')
-        auth.add_user_permission(invited_user_id, scope_id, permission_name)
+        # permission_name = 'project_admin'
+        # # permission_name = 'global_admin'
+        # try:
+        #     invited_user_id = \
+        #         [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
+        # except IndexError:
+        #     invited_user_id = auth.add_user(project_admin_email, '')
+        # auth.add_user_permission(invited_user_id, scope_id, permission_name)
 
-        self.module.context.rpc_manager.call.add_user_to_project(
-            project.id, invited_user_id, 'admin'
-        )
+        # self.module.context.rpc_manager.call.add_user_to_project(
+        #     project.id, invited_user_id, 'admin'
+        # )
 
         # log.info('after invitations sent')
 
