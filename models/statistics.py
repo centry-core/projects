@@ -29,7 +29,7 @@ class Statistic(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     performance_test_runs = Column(Integer, unique=False, default=0)
     sast_scans = Column(Integer, unique=False, default=0)
     dast_scans = Column(Integer, unique=False, default=0)
-    public_pool_workers = Column(Integer, unique=False)
+    public_pool_workers = Column(Integer, unique=False, default=0)
     ui_performance_test_runs = Column(Integer, unique=False, default=0)
     tasks_executions = Column(Integer, unique=False, default=0)
 

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from tools import auth
 from tools import rpc_tools
 from pylon.core.tools import web
@@ -28,22 +30,27 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def add_user_to_project_or_create(
         self, 
-        user_name: str, 
-        user_email: str, 
-        project_id: int, 
-        roles: list
-        ):
-        user_map = {item["name"]: item["id"] for item in auth.list_users()}
-        if user_name in user_map:
+        user_email: str,
+        project_id: int,
+        roles: list,
+    ):
+        user = None
+        for i in auth.list_users():
+            if i['email'] == user_email.lower():
+                user = i
+                break
+        if user:
+            log.info('user %s found. adding to project', user)
             for role in roles:
                 self.context.rpc_manager.call.add_user_to_project(
-                    project_id, user_map[user_name], role
+                    project_id, user['id'], role
                 )
-            return f'user {user_map[user_name]} added to project {project_id}'
+            return f'user {user["name"]} added to project {project_id}'
         else:
-            token = self.context.rpc_manager.call.auth_manager_get_token()
+            log.info('user %s not found. creating user', user_email)
+            keycloak_token = self.context.rpc_manager.call.auth_manager_get_token()
             user_data = {
-                "username": user_name,
+                "username": user_email,
                 "email": user_email, 
                 "enabled": True,
                 "totp": False,
@@ -65,13 +72,18 @@ class RPC:
                     
                 },]
             }
+            log.info('creating keycloak entry')
             user = self.context.rpc_manager.call.auth_manager_create_user_representation(
-                user_data=user_data)
+                user_data=user_data
+            )
             self.context.rpc_manager.call.auth_manager_post_user(
-                realm='carrier', token=token, entity=user)            
-            
-            user_id = auth.add_user(user_name, user_email)
-            auth.add_user_provider(user_id, user_name)
+                realm='carrier', token=keycloak_token, entity=user
+            )
+            log.info('after keycloak')
+
+            user_id = auth.add_user(user_email)
+            # auth.add_user_provider(user_id, user_name)
+            auth.add_user_provider(user_id, user_email)
             auth.add_user_group(user_id, 1)
             
             for role in roles:
