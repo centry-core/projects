@@ -39,7 +39,7 @@ class RPC:
                 self.context.rpc_manager.call.add_user_to_project(
                     project_id, user_map[user_name], role
                 )
-            return f'user {user_map[user_name]} added to project {project_id}'
+            return f'user {user_name} added to project {project_id}'
         else:
             token = self.context.rpc_manager.call.auth_manager_get_token()
             user_data = {
@@ -78,4 +78,4 @@ class RPC:
                 self.context.rpc_manager.call.add_user_to_project(
                     project_id, user_id, role
                     )
-            return f'user {user_id} created and added to project {project_id}'
+            return f'user {user_name} created and added to project {project_id}'
