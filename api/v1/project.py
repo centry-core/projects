@@ -8,7 +8,7 @@ from flask import request, g, make_response
 from pylon.core.tools import log
 from sqlalchemy import schema
 
-from tools import auth, constants as c, VaultClient, TaskManager, db
+from tools import auth, constants as c, VaultClient, TaskManager, db, api_tools
 
 from ...models.project import Project
 from ...models.statistics import Statistic
@@ -17,21 +17,12 @@ from ...tools.influx_tools import create_project_databases, drop_project_databas
 from ...tools.rabbit_tools import create_project_user_and_vhost
 from ...tools.session_plugins import SessionProjectPlugin
 
-PROJECT_ROLE_NAME = 'project'
+PROJECT_ROLE_NAME = 'default'
 
 
-class API(Resource):
-    url_params = [
-        '',
-        '<int:project_id>',
-    ]
+class ProjectAPI(api_tools.APIModeHandler):
 
-    def __init__(self, module):
-        self.module = module
-
-    # @auth.decorators.check_api(['global_view'])
-    def get(self, project_id: Optional[int] = None) -> Union[
-        Tuple[dict, int], Tuple[list, int]]:
+    def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
             return list(), 200
@@ -44,8 +35,30 @@ class API(Resource):
             g.auth.id, offset_=offset_, limit_=limit_, search_=search_
         ), 200
 
-    @auth.decorators.check_api(['global_admin'])
-    def post(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
+
+class AdminAPI(api_tools.APIModeHandler):
+
+    def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
+        log.info('g.auth.id %s', g.auth.id)
+        if g.auth.id is None:
+            return list(), 200
+        #
+        offset_ = request.args.get("offset")
+        limit_ = request.args.get("limit")
+        search_ = request.args.get("search")
+        #
+        return self.module.list_user_projects(
+            g.auth.id, offset_=offset_, limit_=limit_, search_=search_
+        ), 200
+
+    @auth.decorators.check_api({
+        "permissions": ["admin.projects.projects.create"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
+    def post(self, project_id: int | None = None) -> tuple[dict, int]:
         log.info('request received')
         log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         data = request.json
@@ -219,31 +232,6 @@ class API(Resource):
 
         token = add_project_token(user_id)
 
-        # invite user to project here
-        # self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
-        #     invitations)
-        # try:
-        #     self.module.context.rpc_manager.timeout(2).project_keycloak_group_handler(project).send_invitations(
-        #         invitations)
-        # except Empty:
-        #     ...
-
-        # permission_name = 'project_admin'
-        # # permission_name = 'global_admin'
-        # try:
-        #     invited_user_id = \
-        #         [i for i in auth.list_users() if i['email'] == project_admin_email][0]['id']
-        # except IndexError:
-        #     invited_user_id = auth.add_user(project_admin_email, '')
-        # auth.add_user_permission(invited_user_id, scope_id, permission_name)
-
-        # self.module.context.rpc_manager.call.add_user_to_project(
-        #     project.id, invited_user_id, 'admin'
-        # )
-
-        # log.info('after invitations sent')
-
-        # SessionProject.set(project.id)  # Looks weird, sorry :D
         ProjectQuota.create(project.id, vuh_limit, storage_space_limit, data_retention_limit)
         log.info('after quota created')
         statistic = Statistic(
@@ -304,19 +292,19 @@ class API(Resource):
 
         # schedules = self.module.context.rpc_manager.call.get_schedules()
         # if "rabbit_public_queue_scheduler" not in [i.name for i in schedules]:
-            # self.module.context.rpc_manager.call.check_rabbit_queues(
-            #     project.id,
-            #     rabbit_queue_checker.task_id
-            # )
-            # self.module.context.rpc_manager.call.create_rabbit_schedule(
-            #     f"rabbit_public_queue_scheduler",
-            #     project.id,
-            #     rabbit_queue_checker.task_id
-            # )
+        # self.module.context.rpc_manager.call.check_rabbit_queues(
+        #     project.id,
+        #     rabbit_queue_checker.task_id
+        # )
+        # self.module.context.rpc_manager.call.create_rabbit_schedule(
+        #     f"rabbit_public_queue_scheduler",
+        #     project.id,
+        #     rabbit_queue_checker.task_id
+        # )
 
         # set_grafana_datasources(project.id)
         self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
-        self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
+        # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     @auth.decorators.check_api(['global_admin'])
@@ -342,3 +330,16 @@ class API(Resource):
         vault_client = VaultClient.from_project(project_id)
         vault_client.remove_project_space()
         return {"message": f"Project with id {project_id} was successfully deleted"}, 204
+
+
+class API(api_tools.APIBase):  # pylint: disable=R0903
+    url_params = [
+        "",
+        "<string:mode>",
+        "<string:mode>/<int:project_id>",
+    ]
+
+    mode_handlers = {
+        'administration': AdminAPI,
+        'default': ProjectAPI,
+    }
