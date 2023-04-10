@@ -102,11 +102,11 @@ class RPC:
             host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
             password=constants.REDIS_PASSWORD, username=constants.REDIS_USER
         )
-        log.info('get_rabbit_queues vhost: [%s]', vhost,)
         try:
             # log.info('get_rabbit_queues vhost: [%s], RC.get %s', vhost, _rc.get(name=vhost))
-            queues = json.loads(_rc.get(name=vhost))
-            log.info('get_rabbit_queues vhost: [%s], queues: [%s]', vhost, queues)
+            raw = _rc.get(name=vhost)
+            log.info('get_rabbit_queues vhost: [%s], queues: [%s]', vhost, raw)
+            queues = json.loads(raw)
         except TypeError:
             return []
         if remove_internal:
