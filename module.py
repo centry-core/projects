@@ -20,6 +20,8 @@ import jinja2  # pylint: disable=E0401
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 from pylon.core.tools.context import Context as Holder
+from sqlalchemy.exc import ProgrammingError
+from tools import db_migrations, db  # pylint: disable=E0401
 #
 # from tools import config
 
@@ -34,6 +36,11 @@ class Module(module.ModuleModel):
     def init(self):
         """ Init module """
         log.info("Initializing module Projects")
+        try:
+            # Run DB migrations
+            db_migrations.run_db_migrations(self, db.url)
+        except ProgrammingError as e:
+            log.info(e)
 
         from .tools import session_plugins, session_project, influx_tools, grafana_tools, rabbit_tools
         self.descriptor.register_tool('session_plugins', session_plugins.SessionProjectPlugin)

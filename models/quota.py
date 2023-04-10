@@ -12,7 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, DateTime
 from datetime import datetime, timedelta
 
 from tools import db, db_tools, data_tools
@@ -31,6 +31,7 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     last_update_time = Column(DateTime, server_default=data_tools.utcnow())
 
     dast_scans = Column(Integer, unique=False, default=-1)
+    sast_scans = Column(Integer, default=-1)
 
     def update(self, vuh_limit, storage_space, data_retention_limit):
         self.vuh_limit = vuh_limit
