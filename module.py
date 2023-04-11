@@ -17,14 +17,13 @@
 import flask  # pylint: disable=E0401
 import jinja2  # pylint: disable=E0401
 
-from flask import request, render_template
-
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
-
-from ..shared.utils.api_utils import add_resource_to_api
-
-from .init_db import init_db
+from pylon.core.tools.context import Context as Holder
+from sqlalchemy.exc import ProgrammingError
+from tools import db_migrations, db  # pylint: disable=E0401
+#
+# from tools import config
 
 
 class Module(module.ModuleModel):
@@ -37,30 +36,36 @@ class Module(module.ModuleModel):
     def init(self):
         """ Init module """
         log.info("Initializing module Projects")
-        init_db()
-        from .api.project import ProjectAPI
-        from .api.projectsession import ProjectSessionAPI
-        from .api.statistics import StatisticAPI
-        from .api.quota import QuotaAPI
-        add_resource_to_api(self.context.api, ProjectAPI, "/project", "/project/<int:project_id>")
-        add_resource_to_api(self.context.api, ProjectSessionAPI, "/project-session",
-                            "/project-session/<int:project_id>")
-        add_resource_to_api(self.context.api, StatisticAPI, "/statistic/<int:project_id>")
-        add_resource_to_api(self.context.api, QuotaAPI, "/quota/<int:project_id>")
+        try:
+            # Run DB migrations
+            db_migrations.run_db_migrations(self, db.url)
+        except ProgrammingError as e:
+            log.info(e)
 
-        from .rpc_worker import (
-            prj_or_404, list_projects, get_project_statistics, get_storage_quota,
-            check_quota, add_task_execution, set_active_project, get_project_id,
-        )
-        self.context.rpc_manager.register_function(prj_or_404, name='project_get_or_404')
-        self.context.rpc_manager.register_function(list_projects, name='project_list')
-        self.context.rpc_manager.register_function(get_project_statistics, name='project_statistics')
-        self.context.rpc_manager.register_function(add_task_execution)
-        self.context.rpc_manager.register_function(get_storage_quota, name='project_get_storage_space_quota')
-        self.context.rpc_manager.register_function(check_quota, name='project_check_quota')
-        self.context.rpc_manager.register_function(set_active_project, name='set_active_project')
-        self.context.rpc_manager.register_function(get_project_id, name='get_project_id')
+        from .tools import session_plugins, session_project, influx_tools, grafana_tools, rabbit_tools
+        self.descriptor.register_tool('session_plugins', session_plugins.SessionProjectPlugin)
+        self.descriptor.register_tool('session_project', session_project.SessionProject)
+        self.descriptor.register_tool('influx_tools', influx_tools)
+        self.descriptor.register_tool('grafana_tools', grafana_tools)
+        self.descriptor.register_tool('rabbit_tools', rabbit_tools)
+
+        from .init_db import init_db
+        init_db()
+
+        self.descriptor.init_api()
+
+        self.descriptor.init_rpcs()
+
+        self.context.app.before_request(self._before_request_hook)
+
+        # self.descriptor.register_tool('projects', self)
+
+        # rabbit_tools.create_administration_user_and_vhost()
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
+
+    def _before_request_hook(self):
+        flask.g.project = Holder()
+        flask.g.project.id = self.get_id()  # comes from RPC
