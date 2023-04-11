@@ -1,4 +1,4 @@
-from ..shared.db_manager import Base, engine
+from tools import db
 
 
 def init_db():
@@ -6,5 +6,5 @@ def init_db():
     from .models.quota import ProjectQuota
     from .models.statistics import Statistic
 
-    Base.metadata.create_all(bind=engine)
+    db.get_shared_metadata().create_all(bind=db.engine)
 

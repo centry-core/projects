@@ -14,14 +14,12 @@
 
 from sqlalchemy import Column, Integer, String
 
-from ...shared.models.abstract_base import AbstractBaseMixin
-from ...shared.db_manager import Base
-from ...shared.connectors.minio import MinioClient
+from tools import db, db_tools, rpc_tools, MinioClient
 
 from .project import Project
 
 
-class Statistic(AbstractBaseMixin, Base):
+class Statistic(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
     __tablename__ = "statistic"
 
     id = Column(Integer, primary_key=True)
@@ -31,7 +29,7 @@ class Statistic(AbstractBaseMixin, Base):
     performance_test_runs = Column(Integer, unique=False, default=0)
     sast_scans = Column(Integer, unique=False, default=0)
     dast_scans = Column(Integer, unique=False, default=0)
-    public_pool_workers = Column(Integer, unique=False)
+    public_pool_workers = Column(Integer, unique=False, default=0)
     ui_performance_test_runs = Column(Integer, unique=False, default=0)
     tasks_executions = Column(Integer, unique=False, default=0)
 
@@ -45,6 +43,5 @@ class Statistic(AbstractBaseMixin, Base):
             for file in minio_client.list_files(bucket):
                 storage_space += file["size"]
         json_dict["storage_space"] = round(storage_space/1000000, 2)
-        from flask import current_app
-        json_dict["tasks_count"] = current_app.config["CONTEXT"].rpc_manager.call.tasks_count(project_id=project.id)
+        json_dict["tasks_count"] = self.rpc.call.tasks_count(project_id=project.id)
         return json_dict
