@@ -40,6 +40,9 @@ class RPC:
                 user = i
                 break
         if user:
+            project_users = self.context.rpc_manager.call.get_users_ids_in_project(project_id)
+            if user['id'] in [user['auth_id'] for user in project_users]:
+                return f'user {user["name"]} already exists in project {project_id}'
             log.info('user %s found. adding to project', user)
             for role in roles:
                 self.context.rpc_manager.call.add_user_to_project(
@@ -90,4 +93,4 @@ class RPC:
                 self.context.rpc_manager.call.add_user_to_project(
                     project_id, user_id, role
                     )
-            return f'user {user_id} created and added to project {project_id}'
+            return f'user {user_email} created and added to project {project_id}'
