@@ -42,13 +42,19 @@ class RPC:
         if user:
             project_users = self.context.rpc_manager.call.get_users_ids_in_project(project_id)
             if user['id'] in [user['auth_id'] for user in project_users]:
-                return f'user {user["name"]} already exists in project {project_id}'
+                return {
+                    'msg': f'user {user["email"]} already exists in project {project_id}', 
+                    'status': 'error'
+                    }
             log.info('user %s found. adding to project', user)
             for role in roles:
                 self.context.rpc_manager.call.add_user_to_project(
                     project_id, user['id'], role
                 )
-            return f'user {user["name"]} added to project {project_id}'
+            return {
+                'msg': f'user {user["email"]} added to project {project_id}', 
+                'status': 'ok'
+                }
         else:
             log.info('user %s not found. creating user', user_email)
             keycloak_token = self.context.rpc_manager.call.auth_manager_get_token()
@@ -93,4 +99,7 @@ class RPC:
                 self.context.rpc_manager.call.add_user_to_project(
                     project_id, user_id, role
                     )
-            return f'user {user_email} created and added to project {project_id}'
+            return {
+                'msg': f'user {user_email} created and added to project {project_id}', 
+                'status': 'ok'
+                }
