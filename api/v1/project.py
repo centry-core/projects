@@ -1,16 +1,12 @@
-import json
-import re
 from datetime import datetime
-from queue import Empty
-from typing import Optional, Union, Tuple
-from flask_restful import Resource
-from flask import request, g, make_response
+from typing import Optional, Tuple
+from flask import request, g
 from pylon.core.tools import log
 
 from pydantic import ValidationError
 from sqlalchemy import schema
 
-from tools import auth, constants as c, VaultClient, TaskManager, db, api_tools
+from tools import auth, constants as c, VaultClient, TaskManager, db, api_tools, db_tools
 
 from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
@@ -155,17 +151,17 @@ class AdminAPI(api_tools.APIModeHandler):
         # else:
         #     scope_id = scope_map[scope_name]
 
-
         #
         # Auth: create project admin
         #
         log.info('adding project admin')
+        ROLES = ['admin', ]
         self.module.add_user_to_project_or_create(
             # user_name=project_model.project_admin_email,
             user_email=project_model.project_admin_email,
             project_id=project.id,
-            roles=['admin', ]
-            )
+            roles=ROLES
+        )
 
         user_id = create_project_user(project_id=project.id)
         log.info('after project tech user is created')
@@ -228,6 +224,17 @@ class AdminAPI(api_tools.APIModeHandler):
         self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
         log.info('after run rabbit task')
         # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
+
+        # Send invitations here
+        if project_model.invitation_integration:
+            # self.module.context.rpc_manager.timeout(3).handle_invitations(project.id, )
+            TaskManager(mode='administration').run_task([{
+                'one_recipient': project_model.project_admin_email,
+                'one_role': ROLES[0],
+                'subject': 'Invitation to a Centry project',
+                'debug_sleep': '1'
+            }], project_model.invitation_integration)
+
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     @auth.decorators.check_api(['global_admin'])
