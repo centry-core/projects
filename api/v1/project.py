@@ -33,7 +33,6 @@ def create_project_user(project_id: int) -> int:
         return user_map[user_name]
     except KeyError:
         user_id = auth.add_user(user_email, user_name)
-        # auth.add_user_permission(user_id, scope_id, "project_member") #  do we need this?
         return user_id
 
 
@@ -48,16 +47,8 @@ def add_project_token(user_id: int) -> str:
         )
     else:
         token_id = all_tokens[0]["id"]
-    #
-    current_permissions = auth.resolve_permissions(auth_data=g.auth)
-    #
-    for permission in current_permissions:
-        try:
-            # auth.add_token_permission(token_id, scope_id, permission)
-            # todo: wtf is scope? do we need to purge it?
-            auth.add_token_permission(token_id, 1, permission)
-        except:  # pylint: disable=W0702
-            pass
+    # For now all tokens are assigned to admin in administration mode
+    auth.assign_role_to_token(token_id, 'admin', mode='administration')
     #
     return auth.encode_token(token_id)
 
@@ -94,7 +85,7 @@ class AdminAPI(api_tools.APIModeHandler):
         ), 200
 
     @auth.decorators.check_api({
-        "permissions": ["admin.projects.projects.create"],
+        "permissions": ["projects.projects.projects.create"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
             "default": {"admin": False, "viewer": False, "editor": False},
@@ -142,20 +133,6 @@ class AdminAPI(api_tools.APIModeHandler):
                 project.id, permission['name'], permission["permission"]
             )
         log.info('after permissions set for roles')
-
-        # #
-        # # Auth: create project scope
-        # #
-        # scope_map = {item["name"]: item["id"] for item in auth.list_scopes()}
-        # scope_name = f"Project-{project.id}"
-        # #
-        # if scope_name not in scope_map:
-        #     scope_id = auth.add_scope(scope_name, parent_id=1)
-        #     log.info("Created project scope: %s -> %s", scope_name, scope_id)
-        # else:
-        #     scope_id = scope_map[scope_name]
-
-
         #
         # Auth: create project admin
         #
@@ -165,7 +142,7 @@ class AdminAPI(api_tools.APIModeHandler):
             user_email=project_model.project_admin_email,
             project_id=project.id,
             roles=['admin', ]
-            )
+        )
 
         user_id = create_project_user(project_id=project.id)
         log.info('after project tech user is created')
@@ -230,7 +207,13 @@ class AdminAPI(api_tools.APIModeHandler):
         # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
-    @auth.decorators.check_api(['global_admin'])
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.projects.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -246,7 +229,13 @@ class AdminAPI(api_tools.APIModeHandler):
         project.commit()
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
-    @auth.decorators.check_api(['global_admin'])
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.projects.delete"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
