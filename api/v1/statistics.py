@@ -4,6 +4,7 @@ from flask_restful import Resource
 from ...models.statistics import Statistic
 from ...models.quota import ProjectQuota
 
+from tools import auth
 
 class API(Resource):
     url_params = [
@@ -13,6 +14,7 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
+    @auth.decorators.check_api(["projects.projects.project.view"])
     def get(self, project_id: int):
         statistic = Statistic.query.filter_by(project_id=project_id).first().to_json()
         quota = ProjectQuota.query.filter_by(project_id=project_id).first().to_json()
