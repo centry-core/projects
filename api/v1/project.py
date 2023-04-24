@@ -54,7 +54,13 @@ def add_project_token(user_id: int) -> str:
 
 
 class ProjectAPI(api_tools.APIModeHandler):
-
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": True, "viewer": False, "editor": False},
+            "developer": {"admin": True, "viewer": False, "editor": False},
+        }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
@@ -70,7 +76,13 @@ class ProjectAPI(api_tools.APIModeHandler):
 
 
 class AdminAPI(api_tools.APIModeHandler):
-
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
@@ -85,7 +97,7 @@ class AdminAPI(api_tools.APIModeHandler):
         ), 200
 
     @auth.decorators.check_api({
-        "permissions": ["projects.projects.projects.create"],
+        "permissions": ["projects.projects.project.create"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
             "default": {"admin": False, "viewer": False, "editor": False},
@@ -208,7 +220,7 @@ class AdminAPI(api_tools.APIModeHandler):
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
     @auth.decorators.check_api({
-        "permissions": ["projects.projects.projects.edit"],
+        "permissions": ["projects.projects.project.edit"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
             "default": {"admin": False, "viewer": False, "editor": False},
@@ -230,7 +242,7 @@ class AdminAPI(api_tools.APIModeHandler):
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
     @auth.decorators.check_api({
-        "permissions": ["projects.projects.projects.delete"],
+        "permissions": ["projects.projects.project.delete"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
             "default": {"admin": False, "viewer": False, "editor": False},

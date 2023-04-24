@@ -4,6 +4,8 @@ from flask_restful import Resource
 from ...models.quota import ProjectQuota
 from ...models.project import Project
 
+from tools import auth
+
 
 class API(Resource):
     url_params = [
@@ -13,6 +15,7 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
+    @auth.decorators.check_api(["projects.projects.project.view"])
     def get(self, project_id: int):
         project = Project.get_or_404(project_id)
         args = request.args
