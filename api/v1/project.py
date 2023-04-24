@@ -63,7 +63,13 @@ def add_project_token(user_id: int) -> str:
 
 
 class ProjectAPI(api_tools.APIModeHandler):
-
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": True, "viewer": False, "editor": False},
+            "developer": {"admin": True, "viewer": False, "editor": False},
+        }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
@@ -79,7 +85,13 @@ class ProjectAPI(api_tools.APIModeHandler):
 
 
 class AdminAPI(api_tools.APIModeHandler):
-
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
@@ -94,7 +106,7 @@ class AdminAPI(api_tools.APIModeHandler):
         ), 200
 
     @auth.decorators.check_api({
-        "permissions": ["admin.projects.projects.create"],
+        "permissions": ["projects.projects.project.create"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
             "default": {"admin": False, "viewer": False, "editor": False},
@@ -230,7 +242,13 @@ class AdminAPI(api_tools.APIModeHandler):
         # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
 
-    @auth.decorators.check_api(['global_admin'])
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -246,7 +264,13 @@ class AdminAPI(api_tools.APIModeHandler):
         project.commit()
         return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 200
 
-    @auth.decorators.check_api(['global_admin'])
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.project.delete"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": False, "viewer": False, "editor": False},
+            "developer": {"admin": False, "viewer": False, "editor": False},
+        }})
     def delete(self, project_id: int) -> Tuple[dict, int]:
         drop_project_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
