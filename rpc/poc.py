@@ -41,10 +41,11 @@ class RPC:
                 break
         if user:
             project_users = self.context.rpc_manager.call.get_users_ids_in_project(project_id)
-            if user['id'] in [user['auth_id'] for user in project_users]:
+            if user['id'] in [u['auth_id'] for u in project_users]:
                 return {
                     'msg': f'user {user["email"]} already exists in project {project_id}', 
-                    'status': 'error'
+                    'status': 'error',
+                    'email': user["email"]
                     }
             log.info('user %s found. adding to project', user)
             for role in roles:
@@ -53,7 +54,8 @@ class RPC:
                 )
             return {
                 'msg': f'user {user["email"]} added to project {project_id}', 
-                'status': 'ok'
+                'status': 'ok',
+                'email': user["email"]
                 }
         else:
             log.info('user %s not found. creating user', user_email)
@@ -101,5 +103,6 @@ class RPC:
                     )
             return {
                 'msg': f'user {user_email} created and added to project {project_id}', 
-                'status': 'ok'
+                'status': 'ok',
+                'email': user["email"]
                 }
