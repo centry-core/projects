@@ -12,9 +12,9 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime
 
-from tools import db, db_tools, rpc_tools, MinioClient
+from tools import db, db_tools, rpc_tools, MinioClient, data_tools
 
 from .project import Project
 
@@ -24,7 +24,8 @@ class Statistic(db_tools.AbstractBaseMixin, db.Base, rpc_tools.RpcMixin):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=False)
-    start_time = Column(String(128), unique=False)
+    # start_time = Column(String(128), unique=False)
+    start_time = Column(DateTime, server_default=data_tools.utcnow())
     vuh_used = Column(Integer, unique=False, default=0)
     performance_test_runs = Column(Integer, unique=False, default=0)
     sast_scans = Column(Integer, unique=False, default=0)
