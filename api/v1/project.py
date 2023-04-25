@@ -6,47 +6,18 @@ from pylon.core.tools import log
 from pydantic import ValidationError
 from sqlalchemy import schema
 
-from tools import auth, constants as c, VaultClient, TaskManager, db, api_tools, db_tools
+from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools
 
 from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
 from ...models.statistics import Statistic
 from ...models.quota import ProjectQuota
-from ...tools.influx_tools import create_project_databases, drop_project_databases
+from ...utils import create_project_influx_databases, drop_project_influx_databases, generate_project_secrets, \
+    add_project_token, create_project_user
 from ...tools.rabbit_tools import create_project_user_and_vhost
 from ...tools.session_plugins import SessionProjectPlugin
 
 PROJECT_ROLE_NAME = 'default'
-
-
-def create_project_user(project_id: int) -> int:
-    # Auth: create project user
-    user_map = {i["name"]: i["id"] for i in auth.list_users()}
-    user_name = f":Carrier:Project:{project_id}:"
-    user_email = f"{project_id}@special.carrier.project.user"
-    #
-    try:
-        return user_map[user_name]
-    except KeyError:
-        user_id = auth.add_user(user_email, user_name)
-        return user_id
-
-
-def add_project_token(user_id: int) -> str:
-    # Auth: add project token
-    all_tokens = auth.list_tokens(user_id)
-    #
-    if len(all_tokens) < 1:
-        token_id = auth.add_token(
-            user_id, "api",
-            # expires=datetime.datetime.now()+datetime.timedelta(seconds=30),
-        )
-    else:
-        token_id = all_tokens[0]["id"]
-    # For now all tokens are assigned to admin in administration mode
-    auth.assign_role_to_token(token_id, 'admin', mode='administration')
-    #
-    return auth.encode_token(token_id)
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -99,35 +70,57 @@ class AdminAPI(api_tools.APIModeHandler):
             "default": {"admin": False, "viewer": False, "editor": False},
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
-    def post(self, project_id: int | None = None) -> tuple[dict, int]:
-        log.info('do we have an rpc? %s', self.module.context.rpc_manager)
-        #
+    def post(self, **kwargs) -> tuple[dict, int]:
+        # log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         # Validate incoming data
-        #
         try:
             project_model = ProjectCreatePD.parse_obj(request.json)
         except ValidationError as e:
             return e.errors(), 400
-        # invitations = data['invitations']
-        project = Project(
-            name=project_model.name,
-            plugins=project_model.plugins,
-            owner=str(g.auth.id)
-        )
-        project_secrets = {}
-        project_hidden_secrets = {}
-        project.insert()
-        log.info('after project.insert()')
+
+        # with db_tools.session.begin():
+        # sp = db_tools.session.begin_nested()
+        def create_project_model(pd_model: ProjectCreatePD, owner_id: int) -> Project:
+            project = Project(
+                name=pd_model.name,
+                plugins=pd_model.plugins,
+                owner_id=owner_id
+            )
+            project.insert()
+            log.info('after project.insert()')
+            ProjectQuota.create(
+                project_id=project.id,
+                vuh_limit=pd_model.vuh_limit,
+                storage_space=pd_model.storage_space_limit,
+                data_retention_limit=pd_model.data_retention_limit
+            )
+            log.info('after quota created')
+
+            statistic = Statistic(
+                project_id=project.id,
+                start_time=str(datetime.utcnow()),
+            )
+            statistic.insert()
+            log.info('after statistic created')
+            return project
+
+        project = create_project_model(project_model, g.auth.id)
+        # pid = str(project.id)
+
+        # sp.rollback()
+        # return f'Project {pid} should not be in db', 400
 
         SessionProjectPlugin.set(project.plugins)  # this looks bad
 
-        # Create project schema
-        with db.with_project_schema_session(project.id) as tenant_db:
-            tenant_db.execute(schema.CreateSchema(f"Project-{project.id}"))
-            db.get_tenant_specific_metadata().create_all(bind=tenant_db.connection())
-            tenant_db.commit()
-        log.info("Project schema created")
+        def create_project_schema(project_id: int) -> None:
+            with db.with_project_schema_session(project_id) as tenant_db:
+                tenant_db.execute(schema.CreateSchema(f"Project-{project_id}"))
+                db.get_tenant_specific_metadata().create_all(bind=tenant_db.connection())
+                tenant_db.commit()
+            log.info("Project schema created")
 
+        # Create project schema
+        create_project_schema(project.id)
         project_roles = auth.get_roles(mode=PROJECT_ROLE_NAME)
         project_permissions = auth.get_permissions(mode=PROJECT_ROLE_NAME)
         log.info('after permissions received')
@@ -141,6 +134,19 @@ class AdminAPI(api_tools.APIModeHandler):
                 project.id, permission['name'], permission["permission"]
             )
         log.info('after permissions set for roles')
+
+        # #
+        # # Auth: create project scope
+        # #
+        # scope_map = {item["name"]: item["id"] for item in auth.list_scopes()}
+        # scope_name = f"Project-{project.id}"
+        # #
+        # if scope_name not in scope_map:
+        #     scope_id = auth.add_scope(scope_name, parent_id=1)
+        #     log.info("Created project scope: %s -> %s", scope_name, scope_id)
+        # else:
+        #     scope_id = scope_map[scope_name]
+
         #
         # Auth: create project admin
         #
@@ -152,35 +158,6 @@ class AdminAPI(api_tools.APIModeHandler):
             project_id=project.id,
             roles=ROLES
         )
-
-        user_id = create_project_user(project_id=project.id)
-        log.info('after project tech user is created')
-        token = add_project_token(user_id)
-        log.info('after tech token issued')
-
-        ProjectQuota.create(
-            project_id=project.id,
-            vuh_limit=project_model.vuh_limit,
-            storage_space=project_model.storage_space_limit,
-            data_retention_limit=project_model.data_retention_limit
-        )
-        log.info('after quota created')
-
-        statistic = Statistic(
-            project_id=project.id,
-            start_time=str(datetime.utcnow()),
-        )
-        statistic.insert()
-        log.info('after statistic created')
-
-        project_secrets["galloper_url"] = c.APP_HOST
-        project_secrets["project_id"] = project.id
-        project_secrets["auth_token"] = token
-
-        project_hidden_secrets["jmeter_db"] = f'jmeter_{project.id}'
-        project_hidden_secrets["gatling_db"] = f'gatling_{project.id}'
-        project_hidden_secrets["comparison_db"] = f'comparison_{project.id}'
-        project_hidden_secrets["telegraf_db"] = f'telegraf_{project.id}'
 
         vault_client = VaultClient.from_project(project.id)
         try:
@@ -196,11 +173,18 @@ class AdminAPI(api_tools.APIModeHandler):
             "vault_auth_role_id": project_vault_data["auth_role_id"],
             "vault_auth_secret_id": project_vault_data["auth_secret_id"],
         }
-        project.worker_pool_config_json = {
-            "regions": ["default"]
-        }
+        # project.worker_pool_config_json = {
+        #     "regions": ["default"]
+        # }
         project.commit()
-        log.info('after project secrets set')
+        log.info('after project secrets_json set')
+
+        user_id = create_project_user(project_id=project.id)
+        log.info('after project tech user is created')
+        token = add_project_token(user_id)
+        log.info('after tech token issued')
+        project_secrets, project_hidden_secrets = generate_project_secrets(project.id)
+        project_secrets["auth_token"] = token
 
         vault_client.set_project_secrets(project_secrets)
         log.info('after set_project_secrets')
@@ -208,8 +192,8 @@ class AdminAPI(api_tools.APIModeHandler):
         log.info('after set_project_hidden_secrets')
         create_project_user_and_vhost(project.id)
         log.info('after create_project_user_and_vhost')
-        create_project_databases(project.id)
-        log.info('after create_project_databases')
+        create_project_influx_databases(project.id)
+        log.info('after create_project_influx_databases')
 
         self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
         log.info('after run rabbit task')
@@ -257,7 +241,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int) -> Tuple[dict, int]:
-        drop_project_databases(project_id)
+        drop_project_influx_databases(project_id)
         Project.apply_full_delete_by_pk(pk=project_id)
         vault_client = VaultClient.from_project(project_id)
         vault_client.remove_project_space()

@@ -26,13 +26,13 @@ from ..tools.session_project import SessionProject
 class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     __tablename__ = "project"
 
-    API_EXCLUDE_FIELDS = ("secrets_json", "worker_pool_config_json")
+    API_EXCLUDE_FIELDS = ("secrets_json", )
 
     id = Column(Integer, primary_key=True)
     name = Column(String(256), unique=False)
-    owner = Column(String(256), unique=False)
+    owner_id = Column(Integer, unique=False)
     secrets_json = Column(JSON, unique=False, default={})
-    worker_pool_config_json = Column(JSON, unique=False, default={})
+    # worker_pool_config_json = Column(JSON, unique=False, default={})
     plugins = Column(ARRAY(Text), unique=False, default={})
     keycloak_groups = Column(
         'keycloak_groups', MutableDict.as_mutable(JSON),
@@ -62,11 +62,11 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     def to_json(self, exclude_fields: tuple = tuple()) -> dict:
         json_data = super().to_json(exclude_fields=exclude_fields)
         # json_data["used_in_session"] = self.used_in_session()
-        if 'extended_out' not in exclude_fields:
+        # if 'extended_out' not in exclude_fields:
             # json_data["chapters"] = self.compile_chapters()
             # json_data["projects"] = self.list_projects(offset_=0)
             # json_data["integrations"] = get_project_integrations()
-            json_data["regions"] = self.worker_pool_config_json.get("regions", ["default"])
+            # json_data["regions"] = self.worker_pool_config_json.get("regions", ["default"])
         return json_data
 
     # def compile_chapters(self):
