@@ -14,16 +14,13 @@
 
 """ Module """
 
-import flask  # pylint: disable=E0401
-import jinja2  # pylint: disable=E0401
+import flask
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 from pylon.core.tools.context import Context as Holder
 from sqlalchemy.exc import ProgrammingError
 from tools import db_migrations, db  # pylint: disable=E0401
-#
-# from tools import config
 
 
 class Module(module.ModuleModel):
