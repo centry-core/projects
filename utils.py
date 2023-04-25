@@ -14,7 +14,8 @@ def create_project_influx_databases(project_id: int) -> None:
     client = get_client(project_id)
     for i in INFLUX_DATABASES.keys():
         db_name = secrets.get(i)
-        client.query(f"create database {db_name} with duration 180d replication 1 shard duration 7d name autogen")
+        client.query(
+            f"create database {db_name} with duration 180d replication 1 shard duration 7d name autogen")
 
 
 def drop_project_influx_databases(project_id: int) -> None:
@@ -52,16 +53,9 @@ def add_project_token(user_id: int) -> str:
     else:
         token_id = all_tokens[0]["id"]
     #
-    from flask import g
-    current_permissions = auth.resolve_permissions(auth_data=g.auth)
     #
-    for permission in current_permissions:
-        try:
-            # auth.add_token_permission(token_id, scope_id, permission)
-            # todo: wtf is scope? do we need to purge it?
-            auth.add_token_permission(token_id, 1, permission)
-        except:  # pylint: disable=W0702
-            pass
+    auth.assign_role_to_token(token_id, 'system', mode='administration')
+
     #
     return auth.encode_token(token_id)
 
