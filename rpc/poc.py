@@ -104,5 +104,5 @@ class RPC:
             return {
                 'msg': f'user {user_email} created and added to project {project_id}', 
                 'status': 'ok',
-                'email': user["email"]
+                'email': user_email
                 }
