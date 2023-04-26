@@ -14,7 +14,8 @@ def create_project_influx_databases(project_id: int) -> None:
     client = get_client(project_id)
     for i in INFLUX_DATABASES.keys():
         db_name = secrets.get(i)
-        client.query(f"create database {db_name} with duration 180d replication 1 shard duration 7d name autogen")
+        client.query(
+            f"create database {db_name} with duration 180d replication 1 shard duration 7d name autogen")
 
 
 def drop_project_influx_databases(project_id: int) -> None:
@@ -36,7 +37,7 @@ def create_project_user(project_id: int) -> int:
         return user_map[user_name]
     except KeyError:
         user_id = auth.add_user(user_email, user_name)
-        # auth.add_user_permission(user_id, scope_id, "project_member") #  do we need this?
+        auth.assign_user_to_role(user_id, "system", mode='administration')
         return user_id
 
 
@@ -51,10 +52,6 @@ def add_project_token(user_id: int) -> str:
         )
     else:
         token_id = all_tokens[0]["id"]
-    #
-    #
-    # auth.assign_role_to_token(token_id, 'system', mode='administration')
-
     #
     return auth.encode_token(token_id)
 
