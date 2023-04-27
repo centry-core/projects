@@ -24,9 +24,8 @@ class ProjectAPI(api_tools.APIModeHandler):
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.view"],
         "recommended_roles": {
-            "administration": {"admin": True, "viewer": False, "editor": False},
-            "default": {"admin": True, "viewer": False, "editor": False},
-            "developer": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": True, "viewer": True, "editor": True},
+            "developer": {"admin": True, "viewer": True, "editor": True},
         }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
@@ -47,8 +46,6 @@ class AdminAPI(api_tools.APIModeHandler):
         "permissions": ["projects.projects.project.view"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
-            "default": {"admin": False, "viewer": False, "editor": False},
-            "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
