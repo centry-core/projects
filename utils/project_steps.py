@@ -124,29 +124,19 @@ class ProjectSecrets(ProjectCreationStep):
 
     def create(self, project: Project, system_token: str) -> VaultClient:
         vault_client = VaultClient.from_project(project)
-        try:
-            project_vault_data = vault_client.init_project_space()
-        except:
-            project_vault_data = {
-                "auth_role_id": "",
-                "auth_secret_id": ""
-            }
-            log.warning("Vault is not configured")
+        project_vault_data = vault_client.create_project_space()
         log.info('after vault init_project space')
-        project.secrets_json = {
-            "vault_auth_role_id": project_vault_data["auth_role_id"],
-            "vault_auth_secret_id": project_vault_data["auth_secret_id"],
-        }
+        project.secrets_json = project_vault_data.dict(by_alias=True)
         project.commit()
         log.info('after project secrets_json set')
 
         project_secrets, project_hidden_secrets = generate_project_secrets(vault_client.project_id)
         project_secrets["auth_token"] = system_token
 
-        vault_client.set_project_secrets(project_secrets)
-        log.info('after set_project_secrets')
-        vault_client.set_project_hidden_secrets(project_hidden_secrets)
-        log.info('after set_project_hidden_secrets')
+        vault_client.set_secrets(project_secrets)
+        log.info('after set_secrets')
+        vault_client.set_hidden_secrets(project_hidden_secrets)
+        log.info('after set_hidden_secrets')
 
         return VaultClient.from_project(project)
 
@@ -174,15 +164,15 @@ class RabbitVhost(ProjectCreationStep):
         )
 
         # set project secrets
-        secrets = vault_client.get_project_secrets()
+        secrets = vault_client.get_secrets()
         secrets["rabbit_project_user"] = user
         secrets["rabbit_project_password"] = password
         secrets["rabbit_project_vhost"] = vhost
-        vault_client.set_project_secrets(secrets)
+        vault_client.set_secrets(secrets)
 
     def delete(self, vault_client: VaultClient, **kwargs) -> None:
         all_secrets = vault_client.get_all_secrets()
-        secrets = vault_client.get_project_secrets()
+        secrets = vault_client.get_secrets()
         delete_rabbit_user_and_vhost(
             rabbit_admin_url=f'http://{c.RABBIT_HOST}:15672',
             rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),

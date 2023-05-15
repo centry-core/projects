@@ -28,12 +28,14 @@ class ProjectCreationStep(ABC):
         self._created = {
             'initialized': False,
             'ok': None,
-            'msg': ''
+            'msg': '',
+            'step': self.name
         }
         self._deleted = {
             'initialized': False,
             'ok': None,
-            'msg': ''
+            'msg': '',
+            'step': self.name
         }
 
         self.create = self.check_status('_created')(self.create)
@@ -68,9 +70,9 @@ class ProjectCreationStep(ABC):
 
     def __repr__(self) -> str:
         extra = []
-        if self._created:
+        if self._created['ok']:
             extra.append('created')
-        if self._deleted:
+        if self._deleted['ok']:
             extra.append('deleted')
 
         return f'<Step: {self.name} {" ".join(extra)}>'
