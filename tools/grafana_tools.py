@@ -31,8 +31,8 @@ def set_grafana_datasources(project_id: int):
         "jsonData": {"keepCookies": []},
     }
     vault_client = VaultClient.from_project(project_id)
-    secrets = vault_client.get_project_secrets()
-    hidden_secrets = vault_client.get_project_hidden_secrets()
+    secrets = vault_client.get_secrets()
+    hidden_secrets = vault_client.get_hidden_secrets()
     influx_user = secrets.get("influx_user") if "influx_user" in secrets else hidden_secrets.get("influx_user", "")
     influx_password = secrets.get("influx_password") if "influx_password" in secrets else \
         hidden_secrets.get("influx_password", "")
