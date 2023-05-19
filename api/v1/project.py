@@ -77,8 +77,6 @@ class AdminAPI(api_tools.APIModeHandler):
             # Create project model
             project = ProjectModel().create(project_model, g.auth.id)
 
-            SessionProjectPlugin.set(project.plugins)  # this looks bad
-
             # Create project schema
             ProjectSchema().create(project.id)
 
