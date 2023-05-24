@@ -1,4 +1,5 @@
-from typing import Optional, Tuple
+from traceback import format_exc
+from typing import Optional, Tuple, List
 from flask import request, g
 from pylon.core.tools import log
 
@@ -6,12 +7,14 @@ from pydantic import ValidationError
 
 from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools
 
+from sqlalchemy.exc import NoResultFound
 from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
 
-from ...utils import drop_project_influx_databases, create_project_token, create_project_user, create_project_model, \
-    create_project_schema, create_project_secrets
 from ...tools.session_plugins import SessionProjectPlugin
+from ...utils import get_project_user
+from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, ProjectSecrets, \
+    InfluxDatabases, RabbitVhost, steps
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -62,81 +65,72 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def post(self, **kwargs) -> tuple[dict, int]:
-        # log.info('do we have an rpc? %s', self.module.context.rpc_manager)
         # Validate incoming data
+        status_code = 201
         try:
             project_model = ProjectCreatePD.parse_obj(request.json)
         except ValidationError as e:
             return e.errors(), 400
 
-        project = create_project_model(project_model, g.auth.id)
-
-        SessionProjectPlugin.set(project.plugins)  # this looks bad
-
-        # Create project schema
-        create_project_schema(project.id)
-        project_roles = auth.get_roles(mode='default')
-        project_permissions = auth.get_permissions(mode='default')
-        log.info('after permissions received')
-
-        for role in project_roles:
-            self.module.context.rpc_manager.call.add_role(project.id, role["name"])
-        log.info('after roles added')
-
-        for permission in project_permissions:
-            self.module.context.rpc_manager.call.set_permission_for_role(
-                project.id, permission['name'], permission["permission"]
-            )
-        log.info('after permissions set for roles')
-
-        # Auth: create project admin
-        log.info('adding project admin')
-        ROLES = ['admin', ]
-        self.module.add_user_to_project_or_create(
-            # user_name=project_model.project_admin_email,
-            user_email=project_model.project_admin_email,
-            project_id=project.id,
-            roles=ROLES
-        )
-
-        vault_client = VaultClient.from_project(project)
         try:
-            project_vault_data = vault_client.init_project_space()
-        except:
-            project_vault_data = {
-                "auth_role_id": "",
-                "auth_secret_id": ""
-            }
-            log.warning("Vault is not configured")
-        log.info('after vault init_project space')
-        project.secrets_json = {
-            "vault_auth_role_id": project_vault_data["auth_role_id"],
-            "vault_auth_secret_id": project_vault_data["auth_secret_id"],
-        }
-        project.commit()
-        log.info('after project secrets_json set')
 
-        user_id = create_project_user(project_id=project.id)
-        log.info('after project tech user is created')
-        token = create_project_token(user_id)
-        log.info('after tech token issued')
+            # Create project model
+            project = ProjectModel().create(project_model, g.auth.id)
 
-        create_project_secrets(vault_client, token)
+            # Create project schema
+            ProjectSchema().create(project.id)
 
-        self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
-        log.info('after run rabbit task')
-        # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
+            # Get permissions and roles
+            project_roles = auth.get_roles(mode='default')
+            project_permissions = auth.get_permissions(mode='default')
+            log.info('after permissions received')
+            for role in project_roles:
+                self.module.context.rpc_manager.call.add_role(project.id, role["name"])
+            log.info('after roles added')
+            for permission in project_permissions:
+                self.module.context.rpc_manager.call.set_permission_for_role(
+                    project.id, permission['name'], permission["permission"]
+                )
+            log.info('after permissions set for roles')
 
-        # Send invitations here
-        if project_model.invitation_integration:
-            # self.module.context.rpc_manager.timeout(3).handle_invitations(project.id, )
-            TaskManager(mode='administration').run_task([{
-                'one_recipient': project_model.project_admin_email,
-                'one_role': ROLES[0],
-                'subject': 'Invitation to a Centry project',
-            }], project_model.invitation_integration)
+            # Create system user and token
+            system_user_id = SystemUser().create(project.id)
+            system_token = SystemToken().create(system_user_id)
 
-        return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS), 201
+            # Create project secrets
+            vault_client = ProjectSecrets().create(project, system_token)
+
+            # Init project databases
+            RabbitVhost().create(vault_client)
+            InfluxDatabases().create(vault_client)
+
+            self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
+            log.info('after run rabbit task')
+            # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
+
+            # create project admin
+            log.info('adding project admin')
+            ROLES = ['admin', ]
+            self.module.add_user_to_project_or_create(
+                # user_name=project_model.project_admin_email,
+                user_email=project_model.project_admin_email,
+                project_id=project.id,
+                roles=ROLES
+            )
+
+            # Send invitations here
+            if project_model.invitation_integration:
+                # self.module.context.rpc_manager.timeout(3).handle_invitations(project.id, )
+                TaskManager(mode='administration').run_task([{
+                    'one_recipient': project_model.project_admin_email,
+                    'one_role': ROLES[0],
+                    'subject': 'Invitation to a Centry project',
+                }], project_model.invitation_integration)
+        except Exception as e:
+            log.critical(format_exc())
+            status_code = 400
+        statuses: List[dict] = [step.status['created'] for step in steps]
+        return {'steps': statuses}, status_code
 
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.edit"],
@@ -167,12 +161,30 @@ class AdminAPI(api_tools.APIModeHandler):
             "default": {"admin": False, "viewer": False, "editor": False},
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
-    def delete(self, project_id: int) -> Tuple[dict, int]:
-        drop_project_influx_databases(project_id)
-        Project.apply_full_delete_by_pk(pk=project_id)
-        vault_client = VaultClient.from_project(project_id)
-        vault_client.remove_project_space()
-        return {"message": f"Project with id {project_id} was successfully deleted"}, 204
+    def delete(self, project_id: int):
+        project = Project.get_or_404(project_id)
+        try:
+            system_user_id = get_project_user(project.id)['id']
+        except (RuntimeError, KeyError, NoResultFound):
+            system_user_id = None
+
+        context = {
+            'project': project,
+            'project_id': project.id,
+            'vault_client': VaultClient.from_project(project),
+            'system_user_id': system_user_id
+        }
+
+        log.info('DELETE %s', steps)
+        statuses: List[dict] = []
+        for step in reversed(steps):
+            try:
+                step.delete(**context)
+            except Exception as e:
+                log.warning('%s error %s', repr(step), e)
+            statuses.append(step.status['deleted'])
+
+        return {'steps': statuses}, 200
 
 
 class API(api_tools.APIBase):  # pylint: disable=R0903

@@ -17,14 +17,21 @@ from influxdb import InfluxDBClient
 from tools import VaultClient
 
 
-def get_client(project_id: int, db_name: Optional[str] = None, **kwargs):
-    vault_client = VaultClient.from_project(project_id)
-    all_secrets = vault_client.get_all_secrets()
-    secrets = vault_client.get_project_secrets()
-    influx_host = secrets.get("influx_ip") if "influx_ip" in secrets else all_secrets.get("influx_ip", "")
-    influx_port = secrets.get("influx_port") if "influx_port" in secrets else all_secrets.get("influx_port", 8086)
-    influx_user = secrets.get("influx_user") if "influx_user" in secrets else all_secrets.get("influx_user", "")
-    influx_password = secrets.get("influx_password") if "influx_password" in secrets else \
-        all_secrets.get("influx_password", "")
+def get_client(
+        project_id: int, db_name: Optional[str] = None,
+        vault_client: Optional[VaultClient] = None,
+        secrets: Optional[dict] = None,
+        **kwargs
+):
+    if secrets:
+        all_secrets = secrets
+    elif vault_client:
+        all_secrets = vault_client.get_all_secrets()
+    else:
+        all_secrets = VaultClient.from_project(project_id).get_all_secrets()
+    influx_host = all_secrets.get("influx_ip", "")
+    influx_port = all_secrets.get("influx_port", 8086)
+    influx_user = all_secrets.get("influx_user", "")
+    influx_password = all_secrets.get("influx_password", "")
 
     return InfluxDBClient(influx_host, influx_port, influx_user, influx_password, db_name, **kwargs)

@@ -39,12 +39,12 @@ class Module(module.ModuleModel):
         except ProgrammingError as e:
             log.info(e)
 
-        from .tools import session_plugins, session_project, influx_tools, grafana_tools, rabbit_tools
+        from .tools import session_plugins, session_project, influx_tools, grafana_tools
         self.descriptor.register_tool('session_plugins', session_plugins.SessionProjectPlugin)
         self.descriptor.register_tool('session_project', session_project.SessionProject)
         self.descriptor.register_tool('influx_tools', influx_tools)
         self.descriptor.register_tool('grafana_tools', grafana_tools)
-        self.descriptor.register_tool('rabbit_tools', rabbit_tools)
+        # self.descriptor.register_tool('rabbit_tools', rabbit_tools)
 
         from .init_db import init_db
         init_db()

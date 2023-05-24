@@ -38,6 +38,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         'keycloak_groups', MutableDict.as_mutable(JSON),
         nullable=False, default={},
     )
+    # created_at =
 
     def insert(self) -> None:
         super().insert()
