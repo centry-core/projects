@@ -156,7 +156,7 @@ class RabbitVhost(ProjectCreationStep):
         vhost = PROJECT_RABBIT_VHOST_TEMPLATE.format(vault_client.project_id)
 
         create_rabbit_user_and_vhost(
-            rabbit_admin_url=f'http://{c.RABBIT_HOST}:15672',
+            rabbit_admin_url='http://carrier-rabbit:15672',
             rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
             user=user,
             password=password,
@@ -174,7 +174,7 @@ class RabbitVhost(ProjectCreationStep):
         all_secrets = vault_client.get_all_secrets()
         secrets = vault_client.get_secrets()
         delete_rabbit_user_and_vhost(
-            rabbit_admin_url=f'http://{c.RABBIT_HOST}:15672',
+            rabbit_admin_url='http://carrier-rabbit:15672',
             rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
             user=secrets["rabbit_project_user"],
             vhost=secrets["rabbit_project_vhost"]
