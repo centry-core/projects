@@ -1,3 +1,4 @@
+import json
 from traceback import format_exc
 from typing import Optional, Tuple, List
 from flask import request, g
@@ -13,7 +14,8 @@ from ...models.project import Project
 
 from ...tools.session_plugins import SessionProjectPlugin
 from ...utils import get_project_user
-from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, ProjectSecrets, \
+from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
+    ProjectSecrets, \
     InfluxDatabases, RabbitVhost, steps
 
 
@@ -119,13 +121,19 @@ class AdminAPI(api_tools.APIModeHandler):
             )
 
             # Send invitations here
-            if project_model.invitation_integration:
-                # self.module.context.rpc_manager.timeout(3).handle_invitations(project.id, )
+            if invite_integration := project_model.invitation_integration:
+                log.info(f'sending invitation {invite_integration=}')
+                invitation_integration = json.loads(
+                    invite_integration.replace("'", '"').replace('None', 'null'))
+                email_integration = self.module.context.rpc_manager.call.integrations_get_by_id(
+                    invitation_integration['smtp_integration']['project_id'],
+                    invitation_integration['smtp_integration']['id'],
+                )
                 TaskManager(mode='administration').run_task([{
-                    'one_recipient': project_model.project_admin_email,
-                    'one_role': ROLES[0],
+                    'recipients': [project_model.project_admin_email],
                     'subject': 'Invitation to a Centry project',
-                }], project_model.invitation_integration)
+                    'template': invitation_integration['template'],
+                }], email_integration.task_id)
         except Exception as e:
             log.critical(format_exc())
             status_code = 400
