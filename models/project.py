@@ -12,8 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 from queue import Empty
-from typing import Optional
-from flask import abort
+from typing import Optional, List, Union
 from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_
 from sqlalchemy.ext.mutable import MutableDict
 
@@ -62,62 +61,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
 
     def to_json(self, exclude_fields: tuple = tuple()) -> dict:
         json_data = super().to_json(exclude_fields=exclude_fields)
-        # json_data["used_in_session"] = self.used_in_session()
-        # if 'extended_out' not in exclude_fields:
-            # json_data["chapters"] = self.compile_chapters()
-            # json_data["projects"] = self.list_projects(offset_=0)
-            # json_data["integrations"] = get_project_integrations()
-            # json_data["regions"] = self.worker_pool_config_json.get("regions", ["default"])
         return json_data
-
-    # def compile_chapters(self):
-    #     chapters = []
-    #     if user_is_project_admin():
-    #         chapters.append({
-    #             "title": "Configuration", "link": "?chapter=Configuration&module=Tasks&page=list",
-    #             "nav": [
-    #                 {"title": "Users", "link": "?chapter=Configuration&module=Users&page=all"},
-    #                 {"title": "Quotas", "link": "?chapter=Configuration&module=Quotas&page=all"},
-    #                 {"title": "Tasks", "link": "?chapter=Configuration&module=Tasks&page=list", "active": True},
-    #                 {"title": "Secrets", "link": "?chapter=Configuration&module=Secrets&page=list"},
-    #                 {"title": "Artifacts", "link": "?chapter=Configuration&module=Artifacts&page=list"},
-    #                 {"title": "Integrations", "link": "?chapter=Configuration&module=Integrations&page=all"},
-    #                 {"title": "Plugins", "link": "?chapter=Configuration&module=Plugins&page=all"}
-    #             ]
-    #         })
-    #     if 'dashboards' in self.plugins:
-    #         chapters.append({
-    #             "title": "Portfolio", "link": "?chapter=Portfolio",
-    #             "nav": [
-    #                 {"title": "Dashboards", "link": "?chapter=Portfolio&module=Dashboards&page=all", "active": True},
-    #                 {"title": "Data Explorer", "link": "?chapter=Portfolio&module=Data%20Explorer&page=all"},
-    #                 {"title": "Create Portfolio", "link": "?chapter=Portfolio&module=Create%20Portfolio&page=all"},
-    #             ]
-    #         })
-    #     if any(plugin in ["backend", "visual"] for plugin in self.plugins):
-    #         nav = [{"title": "Overview", "link": "?chapter=Performance&module=Overview&page=overview", "active": True}]
-    #         if "backend" in self.plugins:
-    #             nav.append({"title": "Backend", "link": "?chapter=Performance&module=Backend&page=list"})
-    #         if "visual" in self.plugins:
-    #             nav.append({"title": "Visual", "link": "?chapter=Performance&module=Visual&page=visual"})
-    #         nav.append({"title": "Results", "link": "?chapter=Performance&module=Results&page=reports"})
-    #         nav.append({"title": "Thresholds", "link": "?chapter=Performance&module=Thresholds&page=thresholds"})
-    #         chapters.append({"title": "Performance", "link": "?chapter=Performance", "nav": nav})
-    #     if any(plugin in ["cloud", "infra", "code", "application"] for plugin in self.plugins):
-    #         nav = [{"title": "Overview", "link": "?chapter=Security&module=Overview&page=all", "active": True}]
-    #         if "code" in self.plugins:
-    #             nav.append({"title": "Code", "link": "?chapter=Security&module=Code&page=list"})
-    #         if "application" in self.plugins:
-    #             nav.append({"title": "App", "link": "?chapter=Security&module=App&page=list"})
-    #         if "cloud" in self.plugins:
-    #             nav.append({"title": "Cloud", "link": "?chapter=Security&module=Cloud&page=list"})
-    #         if "infra" in self.plugins:
-    #             nav.append({"title": "Infra", "link": "?chapter=Security&module=Infra&page=list"})
-    #         nav.append({"title": "Results", "link": "?chapter=Security&module=Results&page=all"})
-    #         nav.append({"title": "Thresholds", "link": "?chapter=Security&module=Thresholds&page=all"})
-    #         nav.append({"title": "Bug Bar", "link": "?chapter=Security&module=Bugbar&page=all"})
-    #         chapters.append({"title": "Security", "link": "?chapter=Security&module=Overview&page=all", "nav": nav})
-    #     return chapters
 
     def get_data_retention_limit(self) -> Optional[int]:
         from .quota import ProjectQuota
@@ -141,7 +85,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
 
     @staticmethod
     def list_projects(project_id: int = None, search_: str = None,
-                      limit_: int = None, offset_: int = None, **kwargs):
+                      limit_: int = None, offset_: int = None, **kwargs) -> Union[dict, List[dict]]:
         # allowed_project_ids = only_users_projects()
         excluded_fields = Project.API_EXCLUDE_FIELDS + ('extended_out',)
         _filter = None
