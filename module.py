@@ -16,16 +16,16 @@
 
 import flask
 
-from pylon.core.tools import log  # pylint: disable=E0611,E0401
-from pylon.core.tools import module  # pylint: disable=E0611,E0401
+from pylon.core.tools import module, log  # pylint: disable=E0611,E0401
 from pylon.core.tools.context import Context as Holder
+
+from .models.project import Project
 from sqlalchemy.exc import ProgrammingError
 from tools import db_migrations, db  # pylint: disable=E0401
+from .utils.rabbit_utils import fix_rabbit_vhost
 
 
 class Module(module.ModuleModel):
-    """ Galloper module """
-
     def __init__(self, context, descriptor):
         self.context = context
         self.descriptor = descriptor
@@ -58,6 +58,10 @@ class Module(module.ModuleModel):
         # self.descriptor.register_tool('projects', self)
 
         # rabbit_tools.create_administration_user_and_vhost()
+
+        for p in Project.query.all():
+            fix_rabbit_vhost(p)
+
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
