@@ -13,12 +13,14 @@
 #   limitations under the License.
 from typing import Tuple
 
+from ..constants import PROJECT_RABBIT_USER_TEMPLATE, PROJECT_RABBIT_VHOST_TEMPLATE
 from rabbitmq_admin import AdminAPI
 import random
 import string
 from pylon.core.tools import log
 
-from tools import VaultClient, constants as c
+from ..models.project import Project
+from tools import VaultClient
 
 
 def password_generator(length=16):
@@ -57,3 +59,18 @@ def delete_rabbit_user_and_vhost(rabbit_admin_url: str, rabbit_admin_auth: Tuple
     # rabbit_client.delete_user_permission(user, vhost)
     rabbit_client.delete_user(user)
     rabbit_client.delete_vhost(vhost)
+
+
+def fix_rabbit_vhost(project: Project) -> None:
+    log.info('Fixing rabbit queues for project %s', project.id)
+    vc = VaultClient(project)
+    all_secrets = vc.get_all_secrets()
+
+    create_rabbit_user_and_vhost(
+        rabbit_admin_url='http://carrier-rabbit:15672',
+        rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
+        user=all_secrets['rabbit_project_user'],
+        password=all_secrets['rabbit_project_password'],
+        vhost=all_secrets['rabbit_project_vhost']
+    )
+
