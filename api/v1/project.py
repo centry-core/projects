@@ -134,6 +134,11 @@ class AdminAPI(api_tools.APIModeHandler):
                     'subject': 'Invitation to a Centry project',
                     'template': invitation_integration['template'],
                 }], email_integration.task_id)
+            
+            # create default s3 integration
+            self.module.context.rpc_manager.timeout(3).integrations_create_default_s3_for_new_project(
+                project.id)
+
         except Exception as e:
             log.critical(format_exc())
             status_code = 400
