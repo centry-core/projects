@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import schema
 from sqlalchemy.exc import NoResultFound
-from . import get_project_user, generate_project_secrets
+from . import get_project_user
 from .helpers import ProjectCreationStep
 from .rabbit_utils import password_generator, create_rabbit_user_and_vhost, \
     delete_rabbit_user_and_vhost
@@ -130,7 +130,17 @@ class ProjectSecrets(ProjectCreationStep):
         project.commit()
         log.info('after project secrets_json set')
 
-        project_secrets, project_hidden_secrets = generate_project_secrets(vault_client.project_id)
+        project_secrets = {
+            'backend_performance_results_retention': vault_client.get_all_secrets().get(
+                'backend_performance_results_retention',
+                c.BACKEND_PERFORMANCE_RESULTS_RETENTION
+            )
+        }
+
+        project_hidden_secrets = {
+            k: v.format(project.id) for k, v in INFLUX_DATABASES.items()
+        }
+        project_hidden_secrets['project_id'] = project.id
         project_secrets["auth_token"] = system_token
 
         vault_client.set_secrets(project_secrets)
