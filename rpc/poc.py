@@ -35,8 +35,9 @@ class RPC:
         roles: list,
     ):
         user = None
+        user_email = user_email.lower()
         for i in auth.list_users():
-            if i['email'] == user_email.lower():
+            if i['email'] == user_email:
                 user = i
                 break
         if user:
@@ -62,7 +63,7 @@ class RPC:
             keycloak_token = self.context.rpc_manager.call.auth_manager_get_token()
             user_data = {
                 "username": user_email,
-                "email": user_email, 
+                "email": user_email,
                 "enabled": True,
                 "totp": False,
                 "emailVerified": False,
