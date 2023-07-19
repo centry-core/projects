@@ -78,7 +78,7 @@ class RPC:
     @web.rpc('register_rabbit_queue', 'register_rabbit_queue')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def register_rabbit_queue(self, vhost, queue_name):
-        _rc = redis.Redis(host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
+        _rc = redis.Redis(host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=constants.REDIS_RABBIT_DB,
                           password=constants.REDIS_PASSWORD, username=constants.REDIS_USER)
         queues = _rc.get(name=vhost)
         queues = json.loads(queues) if queues else []
@@ -92,7 +92,7 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_rabbit_queues(self, vhost: str, remove_internal: bool = False) -> list:
         _rc = redis.Redis(
-            host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=4,
+            host=constants.REDIS_HOST, port=constants.REDIS_PORT, db=constants.REDIS_RABBIT_DB,
             password=constants.REDIS_PASSWORD, username=constants.REDIS_USER
         )
         try:

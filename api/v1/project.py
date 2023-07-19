@@ -12,7 +12,6 @@ from sqlalchemy.exc import NoResultFound
 from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
 
-from ...tools.session_plugins import SessionProjectPlugin
 from ...utils import get_project_user
 from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
     ProjectSecrets, \
@@ -46,7 +45,7 @@ class AdminAPI(api_tools.APIModeHandler):
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": False},
         }})
-    def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
+    def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)
         if g.auth.id is None:
             return list(), 200
