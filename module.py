@@ -21,7 +21,7 @@ from pylon.core.tools.context import Context as Holder
 
 from .models.project import Project
 from sqlalchemy.exc import ProgrammingError
-from tools import db_migrations, db  # pylint: disable=E0401
+from tools import db_migrations, config as c  # pylint: disable=E0401
 from .utils.rabbit_utils import fix_rabbit_vhost
 
 
@@ -35,15 +35,14 @@ class Module(module.ModuleModel):
         log.info("Initializing module Projects")
         try:
             # Run DB migrations
-            db_migrations.run_db_migrations(self, db.url)
+            db_migrations.run_db_migrations(self, c.DATABASE_URI)
         except ProgrammingError as e:
             log.info(e)
 
-        from .tools import session_plugins, session_project, influx_tools, grafana_tools
+        from .tools import session_plugins, session_project, influx_tools
         self.descriptor.register_tool('session_plugins', session_plugins.SessionProjectPlugin)
         self.descriptor.register_tool('session_project', session_project.SessionProject)
         self.descriptor.register_tool('influx_tools', influx_tools)
-        self.descriptor.register_tool('grafana_tools', grafana_tools)
         # self.descriptor.register_tool('rabbit_tools', rabbit_tools)
 
         from .init_db import init_db

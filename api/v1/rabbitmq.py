@@ -26,7 +26,7 @@ class API(api_tools.APIBase):
     def put(self, vhost, **kwargs):
         log.info('PUT DATA %s', request.json)
         _rc = redis.Redis(
-            host=c.REDIS_HOST, port=c.REDIS_PORT, db=4,
+            host=c.REDIS_HOST, port=c.REDIS_PORT, db=c.REDIS_RABBIT_DB,
             password=c.REDIS_PASSWORD, username=c.REDIS_USER
         )
         for k, v in request.json.items():
