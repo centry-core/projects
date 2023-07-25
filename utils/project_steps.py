@@ -90,7 +90,12 @@ class SystemUser(ProjectCreationStep):
         user_name = PROJECT_USER_NAME_TEMPLATE.format(project_id)
         user_email = PROJECT_USER_EMAIL_TEMPLATE.format(project_id)
         user_id = auth.add_user(user_email, user_name)
-        auth.assign_user_to_role(user_id, "system", mode='administration')
+        auth.assign_user_to_role(
+            user_id=user_id,
+            role_name='system',
+            mode=c.DEFAULT_MODE,
+            project_id=project_id
+        )
         return user_id
 
     def delete(self, system_user_id: int, **kwargs):
