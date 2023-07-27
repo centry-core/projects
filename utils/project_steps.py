@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+from typing import Optional
 
 from sqlalchemy import schema
 from sqlalchemy.exc import NoResultFound
@@ -17,7 +19,7 @@ from ..models.statistics import Statistic
 from ..tools.influx_tools import get_client
 
 from pylon.core.tools import log
-from tools import db, VaultClient, auth, constants as c
+from tools import db, VaultClient, auth, constants as c, TaskManager
 
 
 class ProjectModel(ProjectCreationStep):
@@ -75,6 +77,25 @@ class ProjectSchema(ProjectCreationStep):
             # db.get_tenant_specific_metadata().drop_all(bind=tenant_db.connection())
             tenant_db.execute(schema.DropSchema(PROJECT_SCHEMA_TEMPLATE.format(project_id), cascade=True))
             tenant_db.commit()
+
+
+class ProjectPermissions(ProjectCreationStep):
+    name = 'project_permissions'
+
+    def create(self, project_id: int) -> None:
+        project_roles = auth.get_roles(mode='default')
+        project_permissions = auth.get_permissions(mode='default')
+        log.info('after permissions received')
+        self.module.context.rpc_manager.call.admin_add_role(project_id, [i["name"] for i in project_roles])
+        log.info('after roles added')
+        for permission in project_permissions:
+            self.module.context.rpc_manager.call.admin_set_permission_for_role(
+                project_id, permission['name'], permission["permission"]
+            )
+        log.info('after permissions set for roles')
+
+    def delete(self, project_id: int, **kwargs) -> None:
+        ...
 
 
 class SystemUser(ProjectCreationStep):
@@ -218,13 +239,40 @@ class InfluxDatabases(ProjectCreationStep):
             client.query(f"drop database {db_name}")
 
 
+class Invitations(ProjectCreationStep):
+    name = 'invitations'
+
+    def create(self, project_model: ProjectCreatePD) -> None:
+        if project_model.invitation_integration:
+            log.info(f'sending invitation {project_model.invitation_integration=}')
+            invitation_integration = json.loads(
+                project_model.invitation_integration.replace("'", '"').replace('None', 'null'))
+            email_integration = self.module.context.rpc_manager.call.integrations_get_by_id(
+                invitation_integration['smtp_integration']['project_id'],
+                invitation_integration['smtp_integration']['id'],
+            )
+            TaskManager(mode='administration').run_task([{
+                'recipients': [project_model.project_admin_email],
+                'subject': 'Invitation to a Centry project',
+                'template': invitation_integration['template'],
+            }], email_integration.task_id)
+
+    def delete(self, *args, **kwargs) -> None:
+        ...
+
 # We initialize classes to form project creation sequence
-steps = [
-    ProjectModel(),
-    ProjectSchema(),
-    SystemUser(),
-    SystemToken(),
-    ProjectSecrets(),
-    RabbitVhost(),
-    InfluxDatabases(),
-]
+
+
+def get_steps(module=None):
+    for step in [
+        ProjectModel,
+        ProjectSchema,
+        ProjectPermissions,
+        SystemUser,
+        SystemToken,
+        ProjectSecrets,
+        RabbitVhost,
+        InfluxDatabases,
+        Invitations
+    ]:
+        yield step(module)

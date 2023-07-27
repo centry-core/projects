@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 import redis
 import json
 
@@ -51,11 +51,16 @@ class RPC:
 
     @web.rpc('project_get_id', 'get_id')
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_id(self):
+    def get_id(self) -> Optional[int]:
         project_id = SessionProject.get()
+        project = Project.query.get(project_id)
+        if project:
+            return project.id
+        SessionProject.pop()
+        return None
         # if not project_id:
         #     project_id = get_user_projects()[0]["id"]
-        return project_id
+        # return project
 
     @web.rpc('project_set_active', 'set_active')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -68,12 +73,6 @@ class RPC:
         statistic = Statistic.query.filter_by(project_id=project_id).first()
         setattr(statistic, column, getattr(statistic, column) + amount)
         statistic.commit()
-
-    # @web.rpc('update_rabbit_queues', 'update_rabbit_queues')
-    # @rpc_tools.wrap_exceptions(RuntimeError)
-    # def update_rabbit_queues(self, vhost, queues):
-    #
-    #     return f"Project queues updated"
 
     @web.rpc('register_rabbit_queue', 'register_rabbit_queue')
     @rpc_tools.wrap_exceptions(RuntimeError)
