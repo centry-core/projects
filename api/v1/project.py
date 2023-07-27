@@ -15,7 +15,7 @@ from ...models.project import Project
 from ...utils import get_project_user
 from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
     ProjectSecrets, \
-    InfluxDatabases, RabbitVhost, steps
+    InfluxDatabases, RabbitVhost, get_steps, ProjectPermissions, Invitations
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -73,6 +73,8 @@ class AdminAPI(api_tools.APIModeHandler):
         except ValidationError as e:
             return e.errors(), 400
 
+        steps = list(get_steps(self.module))
+
         try:
 
             # Create project model
@@ -82,17 +84,7 @@ class AdminAPI(api_tools.APIModeHandler):
             ProjectSchema().create(project.id)
 
             # Get permissions and roles
-            project_roles = auth.get_roles(mode='default')
-            project_permissions = auth.get_permissions(mode='default')
-            log.info('after permissions received')
-            for role in project_roles:
-                self.module.context.rpc_manager.call.add_role(project.id, role["name"])
-            log.info('after roles added')
-            for permission in project_permissions:
-                self.module.context.rpc_manager.call.set_permission_for_role(
-                    project.id, permission['name'], permission["permission"]
-                )
-            log.info('after permissions set for roles')
+            ProjectPermissions(self.module).create(project.id)
 
             # Create system user and token
             system_user_id = SystemUser().create(project.id)
@@ -105,8 +97,8 @@ class AdminAPI(api_tools.APIModeHandler):
             RabbitVhost().create(vault_client)
             InfluxDatabases().create(vault_client)
 
-            self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
-            log.info('after run rabbit task')
+            # self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
+            # log.info('after run rabbit task')
             # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
 
             # create project admin
@@ -120,23 +112,11 @@ class AdminAPI(api_tools.APIModeHandler):
             )
 
             # Send invitations here
-            if invite_integration := project_model.invitation_integration:
-                log.info(f'sending invitation {invite_integration=}')
-                invitation_integration = json.loads(
-                    invite_integration.replace("'", '"').replace('None', 'null'))
-                email_integration = self.module.context.rpc_manager.call.integrations_get_by_id(
-                    invitation_integration['smtp_integration']['project_id'],
-                    invitation_integration['smtp_integration']['id'],
-                )
-                TaskManager(mode='administration').run_task([{
-                    'recipients': [project_model.project_admin_email],
-                    'subject': 'Invitation to a Centry project',
-                    'template': invitation_integration['template'],
-                }], email_integration.task_id)
-            
+            Invitations(self.module).create(project_model)
+
             # create default s3 integration
-            self.module.context.rpc_manager.timeout(3).integrations_create_default_s3_for_new_project(
-                project.id)
+            # self.module.context.rpc_manager.timeout(3).integrations_create_default_s3_for_new_project(project.id)
+            self.module.context.event_manager.fire_event('project_created', project.to_json())
 
         except Exception as e:
             log.critical(format_exc())
@@ -187,8 +167,9 @@ class AdminAPI(api_tools.APIModeHandler):
             'system_user_id': system_user_id
         }
 
-        log.info('DELETE %s', steps)
+        # log.info('DELETE %s', steps)
         statuses: List[dict] = []
+        steps = list(get_steps(self.module))
         for step in reversed(steps):
             try:
                 step.delete(**context)

@@ -24,7 +24,8 @@ class ProjectCreationStep(ABC):
             ProjectCreationStep.all_steps.append(klass)
             return klass
 
-    def __init__(self):
+    def __init__(self, module=None):
+        self.module = module
         self._created = {
             'initialized': False,
             'ok': None,

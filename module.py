@@ -62,7 +62,10 @@ class Module(module.ModuleModel):
         # rabbit_tools.create_administration_user_and_vhost()
 
         for p in Project.query.all():
-            fix_rabbit_vhost(p)
+            try:
+                fix_rabbit_vhost(p)
+            except:
+                log.warning('Couldn\'t fix rabbit for project %s', p)
 
 
     def deinit(self):  # pylint: disable=R0201
