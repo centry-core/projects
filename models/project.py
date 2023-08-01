@@ -74,8 +74,8 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     def get_storage_space_quota(project_id):
         from .quota import ProjectQuota
         project_quota = ProjectQuota.query.filter_by(project_id=project_id).first()
-        if project_quota and project_quota.storage_space:
-            return project_quota.storage_space
+        if project_quota:
+            return project_quota.storage_soft_limit, project_quota.storage_hard_limit
 
     @staticmethod
     def get_or_404(project_id, exclude_fields=()):

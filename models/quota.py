@@ -12,7 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy import Column, Integer, DateTime, Boolean
 from datetime import datetime, timedelta
 
 from tools import db, db_tools, data_tools
@@ -24,19 +24,34 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "project_quota"
 
     id = Column(Integer, primary_key=True)
-    vuh_limit = Column(Integer, unique=False, nullable=False)
     project_id = Column(Integer, unique=False, nullable=False)
-    storage_space = Column(Integer, unique=False)
+    # vuh_limit = Column(Integer, unique=False, nullable=False)
+    # storage_space = Column(Integer, unique=False)
     data_retention_limit = Column(Integer, unique=False)
     last_update_time = Column(DateTime, server_default=data_tools.utcnow())
-
     dast_scans = Column(Integer, unique=False, default=-1)
     sast_scans = Column(Integer, default=-1)
+    vcu_hard_limit = Column(Integer, unique=False, nullable=True)
+    vcu_soft_limit = Column(Integer, unique=False, nullable=True)
+    vcu_limit_total_block = Column(Boolean, unique=False, nullable=False, default=False)
+    storage_hard_limit = Column(Integer, unique=False, nullable=True)
+    storage_soft_limit = Column(Integer, unique=False, nullable=True)
+    storage_limit_total_block = Column(Boolean, unique=False, nullable=False, default=False)
 
-    def update(self, vuh_limit, storage_space, data_retention_limit):
-        self.vuh_limit = vuh_limit
-        self.storage_space = storage_space
+    def update_retention_limit(self, data_retention_limit):
         self.data_retention_limit = data_retention_limit
+        self.commit()
+
+    def update_vcu_limits(self, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block=False):
+        self.vcu_hard_limit = vcu_hard_limit
+        self.vcu_soft_limit = vcu_soft_limit
+        self.vcu_limit_total_block = vcu_limit_total_block
+        self.commit()
+
+    def update_storage_limits(self, storage_hard_limit, storage_soft_limit, storage_limit_total_block=False):
+        self.storage_hard_limit = storage_hard_limit
+        self.storage_soft_limit = storage_soft_limit
+        self.storage_limit_total_block = storage_limit_total_block
         self.commit()
 
     @classmethod
@@ -77,19 +92,31 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
         return ProjectQuota.query.filter(ProjectQuota.project_id == project_id).first().to_json()
 
     @staticmethod
-    def _update_quota(project_id, vuh_limit, storage_space, data_retention_limit):
+    def _update_quota(project_id, data_retention_limit, vcu_hard_limit, vcu_soft_limit, 
+            vcu_limit_total_block, storage_hard_limit, storage_soft_limit, storage_limit_total_block):
         quota = ProjectQuota.query.filter_by(project_id=project_id).first()
         if quota:
-            quota.update(vuh_limit=vuh_limit, storage_space=storage_space, data_retention_limit=data_retention_limit)
+            quota.data_retention_limit = data_retention_limit
+            quota.vcu_hard_limit = vcu_hard_limit
+            quota.vcu_soft_limit = vcu_soft_limit
+            quota.vcu_limit_total_block = vcu_limit_total_block
+            quota.storage_hard_limit = storage_hard_limit
+            quota.storage_soft_limit = storage_soft_limit
+            quota.storage_limit_total_block = storage_limit_total_block
+            quota.commit()
         else:
-            quota = ProjectQuota(project_id=project_id, vuh_limit=vuh_limit,
-                                 storage_space=storage_space, data_retention_limit=data_retention_limit)
+            quota = ProjectQuota(project_id=project_id, data_retention_limit=data_retention_limit,
+                vcu_hard_limit=vcu_hard_limit, vcu_soft_limit=vcu_soft_limit, 
+                vcu_limit_total_block=vcu_limit_total_block, storage_hard_limit=storage_hard_limit, 
+                storage_soft_limit=storage_soft_limit, storage_limit_total_block=storage_limit_total_block)
             quota.insert()
         return quota
 
     @staticmethod
-    def create(project_id, vuh_limit, storage_space, data_retention_limit):
+    def create(project_id, data_retention_limit, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block, 
+            storage_hard_limit, storage_soft_limit, storage_limit_total_block):
         return ProjectQuota._update_quota(project_id=project_id,
-                                          vuh_limit=vuh_limit,
-                                          storage_space=storage_space,
-                                          data_retention_limit=data_retention_limit)
+            data_retention_limit=data_retention_limit, vcu_hard_limit=vcu_hard_limit,
+            vcu_soft_limit=vcu_soft_limit, vcu_limit_total_block=vcu_limit_total_block,
+            storage_hard_limit=storage_hard_limit, storage_soft_limit=storage_soft_limit,
+            storage_limit_total_block=storage_limit_total_block)

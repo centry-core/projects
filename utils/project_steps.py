@@ -35,9 +35,13 @@ class ProjectModel(ProjectCreationStep):
         log.info('after project.insert()')
         ProjectQuota.create(
             project_id=project.id,
-            vuh_limit=pd_model.vuh_limit,
-            storage_space=pd_model.storage_space_limit,
-            data_retention_limit=pd_model.data_retention_limit
+            data_retention_limit=pd_model.data_retention_limit,
+            vcu_hard_limit=pd_model.vcu_hard_limit,
+            vcu_soft_limit=pd_model.vcu_soft_limit,
+            vcu_limit_total_block=pd_model.vcu_limit_total_block,
+            storage_hard_limit=pd_model.storage_hard_limit,
+            storage_soft_limit=pd_model.storage_soft_limit,
+            storage_limit_total_block=pd_model.storage_limit_total_block,
         )
         log.info('after quota created')
 
