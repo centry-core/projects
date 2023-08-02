@@ -7,7 +7,13 @@ class ProjectCreatePD(BaseModel):
     name: constr(min_length=1)
     project_admin_email: EmailStr
     plugins: list = []
-    data_retention_limit: int = 1000000000
-    storage_space_limit: int = 1000000000
-    vuh_limit: int = 60000
+    data_retention_limit: int = 1_000_000_000
+    # storage_space_limit: int = 1_000_000_000
+    # vuh_limit: int = 60000
+    vcu_hard_limit: int = 5000
+    vcu_soft_limit: int = 4700
+    vcu_limit_total_block: bool = False
+    storage_hard_limit: int = 1_200_000_000
+    storage_soft_limit: int = 1_000_000_000
+    storage_limit_total_block: bool = False
     invitation_integration: Optional[str] = None  # task_id
