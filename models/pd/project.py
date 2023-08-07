@@ -13,7 +13,7 @@ class ProjectCreatePD(BaseModel):
     vcu_hard_limit: int = 5000
     vcu_soft_limit: int = 4700
     vcu_limit_total_block: bool = False
-    storage_hard_limit: int = 1_200_000_000
-    storage_soft_limit: int = 1_000_000_000
+    storage_hard_limit: int = 10
+    storage_soft_limit: int = 9
     storage_limit_total_block: bool = False
     invitation_integration: Optional[str] = None  # task_id
