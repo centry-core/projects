@@ -43,7 +43,7 @@ class AdminAPI(api_tools.APIModeHandler):
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.view"],
         "recommended_roles": {
-            "administration": {"admin": True, "viewer": False, "editor": False},
+            "administration": {"admin": True, "viewer": True, "editor": True},
         }})
     def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
         log.info('g.auth.id %s', g.auth.id)

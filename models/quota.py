@@ -120,3 +120,11 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
             vcu_soft_limit=vcu_soft_limit, vcu_limit_total_block=vcu_limit_total_block,
             storage_hard_limit=storage_hard_limit, storage_soft_limit=storage_soft_limit,
             storage_limit_total_block=storage_limit_total_block)
+
+    @property
+    def storage_hard_limit_in_bytes(self):
+        return self.storage_hard_limit * 1_000_000_000
+    
+    @property
+    def storage_soft_limit_in_bytes(self):
+        return self.storage_soft_limit * 1_000_000_000
