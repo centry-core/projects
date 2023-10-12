@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 
 from tools import db, db_tools, data_tools
 
+from typing_extensions import Optional
 from .statistics import Statistic
 
 
@@ -122,9 +123,16 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
             storage_limit_total_block=storage_limit_total_block)
 
     @property
-    def storage_hard_limit_in_bytes(self):
-        return self.storage_hard_limit * 1_000_000_000
+    def storage_hard_limit_in_bytes(self) -> Optional[int]:
+        try:
+            return self.storage_hard_limit * 1_000_000_000
+        except TypeError:
+            return None
     
     @property
-    def storage_soft_limit_in_bytes(self):
-        return self.storage_soft_limit * 1_000_000_000
+    def storage_soft_limit_in_bytes(self) -> Optional[int]:
+        try:
+            return self.storage_soft_limit * 1_000_000_000
+        except TypeError:
+            return None
+
