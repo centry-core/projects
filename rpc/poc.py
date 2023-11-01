@@ -1,9 +1,16 @@
+from traceback import format_exc
 from typing import Optional
 
 from tools import auth
 from tools import rpc_tools
+from tools import config as c
 from pylon.core.tools import web
 from pylon.core.tools import log
+
+from ..models.project import Project
+from ..models.pd.project import ProjectCreatePD
+from ..utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
+    ProjectSecrets, InfluxDatabases, RabbitVhost, ProjectPermissions
 
 
 class RPC:
@@ -102,3 +109,62 @@ class RPC:
                 'status': 'ok',
                 'email': user_email
             }
+
+
+    @web.rpc("project_create_personal_project", "create_personal_project")
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def create_personal_project(self, user_data: dict) -> None:
+        if not isinstance(user_data.get('id', ''), int):
+            return
+
+        user_id = user_data['id']
+        if user_data.get('type', '') == 'token':
+            user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
+
+        project_name = c.PERSONAL_PROJECT_NAME.format(user_id=user_id)
+        projects = Project.list_projects()
+
+        if any(project['name'] == project_name for project in projects):
+            return
+
+        project_model = ProjectCreatePD(
+            name=project_name,
+            project_admin_email=self.context.rpc_manager.call.auth_get_user(user_id)['email'],
+            plugins=['configuration', 'models']
+        )
+
+        try:
+            # Create project model
+            project = ProjectModel().create(project_model, user_id)
+
+            # Create project schema
+            ProjectSchema().create(project.id)
+
+            # Get permissions and roles
+            ProjectPermissions(self).create(project.id)
+
+            # Create system user and token
+            system_user_id = SystemUser().create(project.id)
+            system_token = SystemToken().create(system_user_id)
+
+            # Create project secrets
+            vault_client = ProjectSecrets().create(project, system_token)
+
+            # Init project databases
+            RabbitVhost().create(vault_client)
+            InfluxDatabases().create(vault_client)
+
+            # create project admin
+            ROLES = ['editor', 'viewer']
+            self.add_user_to_project_or_create(
+                # user_name=project_model.project_admin_email,
+                user_email=project_model.project_admin_email,
+                project_id=project.id,
+                roles=ROLES
+            )
+
+            self.context.event_manager.fire_event('project_created', project.to_json())
+            log.info(f'Personal project {project_name} created')
+
+        except Exception as e:
+            log.critical(format_exc())

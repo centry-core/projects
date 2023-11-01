@@ -52,7 +52,7 @@ class Module(module.ModuleModel):
         init_db()
 
         self.descriptor.init_api()
-
+        self.descriptor.init_events()
         self.descriptor.init_rpcs()
 
         self.context.app.before_request(self._before_request_hook)
