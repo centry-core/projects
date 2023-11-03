@@ -14,6 +14,7 @@
 
 """ Module """
 
+from collections import defaultdict
 import flask
 
 from pylon.core.tools import module, log  # pylint: disable=E0611,E0401
@@ -29,6 +30,8 @@ class Module(module.ModuleModel):
     def __init__(self, context, descriptor):
         self.context = context
         self.descriptor = descriptor
+
+        self.visitors = defaultdict(dict)  # use for creating personal projects for each user
 
     def init(self):
         """ Init module """
@@ -57,6 +60,7 @@ class Module(module.ModuleModel):
 
         self.context.app.before_request(self._before_request_hook)
 
+        self.create_scheduling()
         # self.descriptor.register_tool('projects', self)
 
         # rabbit_tools.create_administration_user_and_vhost()
@@ -68,6 +72,7 @@ class Module(module.ModuleModel):
                 log.warning('Couldn\'t fix rabbit for project %s', p)
 
 
+
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
@@ -75,3 +80,12 @@ class Module(module.ModuleModel):
     def _before_request_hook(self):
         flask.g.project = Holder()
         flask.g.project.id = self.get_id()  # comes from RPC
+
+
+    def create_scheduling(self):
+        schedule_data = {
+            'name': 'projects_create_personal_project',
+            'cron': '*/5 * * * *',
+            'rpc_func': 'projects_create_personal_project'
+        }
+        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)

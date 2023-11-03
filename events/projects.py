@@ -5,4 +5,4 @@ class Event:
 
     @web.event(f"auth_visitor")
     def personal_project(self, context, event, payload):
-        self.create_personal_project(payload)
+        self.visitors[(payload.get('id'), payload.get('type'))] = payload
