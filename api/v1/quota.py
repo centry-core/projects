@@ -17,7 +17,7 @@ class API(Resource):
 
     @auth.decorators.check_api(["projects.projects.project.view"])
     def get(self, project_id: int):
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         args = request.args
         return make_response(ProjectQuota.check_quota_json(project.id, args.get("quota")), 200)
 
