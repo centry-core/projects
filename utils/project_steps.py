@@ -19,7 +19,7 @@ from ..models.statistics import Statistic
 from ..tools.influx_tools import get_client
 
 from pylon.core.tools import log
-from tools import db, VaultClient, auth, constants as c, TaskManager
+from tools import db, VaultClient, auth, constants as c, TaskManager, MinioClient
 
 
 class ProjectModel(ProjectCreationStep):
@@ -65,6 +65,23 @@ class ProjectModel(ProjectCreationStep):
         Project.query.get(project_id).delete()
         Project.commit()
         log.info('project deleted')
+
+
+class MinioBuckets(ProjectCreationStep):
+    name = 'minio_buckets'
+
+    def create(self, project: Project | int) -> None:
+        if isinstance(project, int):
+            mc = MinioClient.from_project_id(project)
+        else:
+            mc = MinioClient(project)
+        mc.create_bucket(bucket='reports', bucket_type='system')
+        mc.create_bucket(bucket='tasks', bucket_type='system')
+
+    def delete(self, project_id: int, **kwargs) -> None:
+        mc = MinioClient.from_project_id(project_id)
+        mc.remove_bucket('reports')
+        mc.remove_bucket('tasks')
 
 
 class ProjectSchema(ProjectCreationStep):
@@ -270,6 +287,7 @@ class Invitations(ProjectCreationStep):
 def get_steps(module=None):
     for step in [
         ProjectModel,
+        MinioBuckets,
         ProjectSchema,
         ProjectPermissions,
         SystemUser,

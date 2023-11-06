@@ -136,7 +136,7 @@ class AdminAPI(api_tools.APIModeHandler):
         data = request.json
         if not project_id:
             return {"message": "Specify project id"}, 400
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         if data["name"]:
             project.name = data["name"]
         if data["owner"]:
@@ -154,7 +154,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int):
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         try:
             system_user_id = get_project_user(project.id)['id']
         except (RuntimeError, KeyError, NoResultFound):

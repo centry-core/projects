@@ -23,19 +23,19 @@ class API(Resource):
         if not project_id:
             project_id = SessionProject.get()
         if project_id:
-            project = Project.get_or_404(project_id, exclude_fields=Project.API_EXCLUDE_FIELDS)
+            project = Project.query.get_or_404(project_id, exclude_fields=Project.API_EXCLUDE_FIELDS)
             return project.to_json(), 200
         return {"message": "No project selected in session"}, 404
 
     def post(self, project_id: int):
         log.info('Session project POST pid: %s', project_id)
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         SessionProject.set(project.id)
         SessionProjectPlugin.set(project.plugins)
         return str(project.id), 200
 
     def delete(self, project_id: int):
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         if SessionProject.get() == project.id:
             SessionProject.pop()
             SessionProjectPlugin.pop()
