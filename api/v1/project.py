@@ -73,55 +73,29 @@ class AdminAPI(api_tools.APIModeHandler):
         except ValidationError as e:
             return e.errors(), 400
 
-        steps = list(get_steps(self.module))
-
+        # steps = list(get_steps(self.module))
+        context = {
+            'project_model': project_model,
+            'owner_id': g.auth.id,
+        }
+        progress = []
         try:
-
-            # Create project model
-            project = ProjectModel().create(project_model, g.auth.id)
-
-            # Create project schema
-            ProjectSchema().create(project.id)
-
-            # Get permissions and roles
-            ProjectPermissions(self.module).create(project.id)
-
-            # Create system user and token
-            system_user_id = SystemUser().create(project.id)
-            system_token = SystemToken().create(system_user_id)
-
-            # Create project secrets
-            vault_client = ProjectSecrets().create(project, system_token)
-
-            # Init project databases
-            RabbitVhost().create(vault_client)
-            InfluxDatabases().create(vault_client)
-
-            # self.module.context.rpc_manager.timeout(3).check_rabbit_queues()
-            # log.info('after run rabbit task')
-            # self.module.context.rpc_manager.call.populate_backend_runners_table(project.id)
-
-            # create project admin
-            log.info('adding project admin')
-            ROLES = ['admin', ]
-            self.module.add_user_to_project_or_create(
-                # user_name=project_model.project_admin_email,
-                user_email=project_model.project_admin_email,
-                project_id=project.id,
-                roles=ROLES
-            )
-
-            # Send invitations here
-            Invitations(self.module).create(project_model)
-
-            # create default s3 integration
-            # self.module.context.rpc_manager.timeout(3).integrations_create_default_s3_for_new_project(project.id)
-            self.module.context.event_manager.fire_event('project_created', project.to_json())
+            for step in get_steps(self.module):
+                progress.append(step)
+                step_result = step.create(**context)
+                if step_result is not None:
+                    if isinstance(step_result, dict):
+                        context.update(step_result)
+                    else:
+                        context[step.name] = step_result
+            context['project'].create_success = True
+            context['project'].commit()
+            self.module.context.event_manager.fire_event('project_created', context['project'].to_json())
 
         except Exception as e:
             log.critical(format_exc())
             status_code = 400
-        statuses: List[dict] = [step.status['created'] for step in steps]
+        statuses: List[dict] = [step.status['created'] for step in progress]
         return {'steps': statuses}, status_code
 
     @auth.decorators.check_api({
@@ -136,7 +110,7 @@ class AdminAPI(api_tools.APIModeHandler):
         data = request.json
         if not project_id:
             return {"message": "Specify project id"}, 400
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         if data["name"]:
             project.name = data["name"]
         if data["owner"]:
@@ -154,7 +128,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int):
-        project = Project.get_or_404(project_id)
+        project = Project.query.get_or_404(project_id)
         try:
             system_user_id = get_project_user(project.id)['id']
         except (RuntimeError, KeyError, NoResultFound):
@@ -162,15 +136,12 @@ class AdminAPI(api_tools.APIModeHandler):
 
         context = {
             'project': project,
-            'project_id': project.id,
             'vault_client': VaultClient.from_project(project),
             'system_user_id': system_user_id
         }
 
-        # log.info('DELETE %s', steps)
         statuses: List[dict] = []
-        steps = list(get_steps(self.module))
-        for step in reversed(steps):
+        for step in get_steps(self.module, reverse=True):
             try:
                 step.delete(**context)
             except Exception as e:
