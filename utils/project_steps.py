@@ -25,23 +25,23 @@ from tools import db, VaultClient, auth, constants as c, TaskManager, MinioClien
 class ProjectModel(ProjectCreationStep):
     name = 'project_model'
 
-    def create(self, pd_model: ProjectCreatePD, owner_id: int) -> Project:
+    def create(self, project_model: ProjectCreatePD, owner_id: int, **kwargs) -> dict[str, Project]:
         project = Project(
-            name=pd_model.name,
-            plugins=pd_model.plugins,
+            name=project_model.name,
+            plugins=project_model.plugins,
             owner_id=owner_id
         )
         project.insert()
         log.info('after project.insert()')
         ProjectQuota.create(
             project_id=project.id,
-            data_retention_limit=pd_model.data_retention_limit,
-            vcu_hard_limit=pd_model.vcu_hard_limit,
-            vcu_soft_limit=pd_model.vcu_soft_limit,
-            vcu_limit_total_block=pd_model.vcu_limit_total_block,
-            storage_hard_limit=pd_model.storage_hard_limit,
-            storage_soft_limit=pd_model.storage_soft_limit,
-            storage_limit_total_block=pd_model.storage_limit_total_block,
+            data_retention_limit=project_model.data_retention_limit,
+            vcu_hard_limit=project_model.vcu_hard_limit,
+            vcu_soft_limit=project_model.vcu_soft_limit,
+            vcu_limit_total_block=project_model.vcu_limit_total_block,
+            storage_hard_limit=project_model.storage_hard_limit,
+            storage_soft_limit=project_model.storage_soft_limit,
+            storage_limit_total_block=project_model.storage_limit_total_block,
         )
         log.info('after quota created')
 
@@ -51,18 +51,18 @@ class ProjectModel(ProjectCreationStep):
         )
         statistic.insert()
         log.info('after statistic created')
-        return project
+        return {'project': project}
 
-    def delete(self, project_id: int, **kwargs) -> None:
-        Statistic.query.filter(Statistic.project_id == project_id).delete()
+    def delete(self, project: Project, **kwargs) -> None:
+        Statistic.query.filter(Statistic.project_id == project.id).delete()
         Statistic.commit()
         log.info('statistic deleted')
 
-        ProjectQuota.query.filter(ProjectQuota.project_id == project_id).delete()
+        ProjectQuota.query.filter(ProjectQuota.project_id == project.id).delete()
         ProjectQuota.commit()
         log.info('quota deleted')
 
-        Project.query.get(project_id).delete()
+        Project.query.get(project.id).delete()
         Project.commit()
         log.info('project deleted')
 
@@ -70,16 +70,13 @@ class ProjectModel(ProjectCreationStep):
 class MinioBuckets(ProjectCreationStep):
     name = 'minio_buckets'
 
-    def create(self, project: Project | int) -> None:
-        if isinstance(project, int):
-            mc = MinioClient.from_project_id(project)
-        else:
-            mc = MinioClient(project)
+    def create(self, project: Project, **kwargs) -> None:
+        mc = MinioClient(project)
         mc.create_bucket(bucket='reports', bucket_type='system')
         mc.create_bucket(bucket='tasks', bucket_type='system')
 
-    def delete(self, project_id: int, **kwargs) -> None:
-        mc = MinioClient.from_project_id(project_id)
+    def delete(self, project: Project, **kwargs) -> None:
+        mc = MinioClient(project)
         mc.remove_bucket('reports')
         mc.remove_bucket('tasks')
 
@@ -87,67 +84,63 @@ class MinioBuckets(ProjectCreationStep):
 class ProjectSchema(ProjectCreationStep):
     name = 'project_schema'
 
-    def create(self, project_id: int) -> None:
-        with db.with_project_schema_session(project_id) as tenant_db:
-            tenant_db.execute(schema.CreateSchema(PROJECT_SCHEMA_TEMPLATE.format(project_id)))
-            db.get_tenant_specific_metadata().create_all(bind=tenant_db.connection())
+    def create(self, project: Project, **kwargs) -> None:
+        with db.with_project_schema_session(project.id) as tenant_db:
+            tenant_db.execute(schema.CreateSchema(PROJECT_SCHEMA_TEMPLATE.format(project.id)))
+            db.get_all_metadata().create_all(bind=tenant_db.connection())
             tenant_db.commit()
 
-    def delete(self, project_id: int, **kwargs) -> None:
-        with db.with_project_schema_session(project_id) as tenant_db:
-            # db.get_tenant_specific_metadata().drop_all(bind=tenant_db.connection())
-            tenant_db.execute(schema.DropSchema(PROJECT_SCHEMA_TEMPLATE.format(project_id), cascade=True))
+    def delete(self, project: Project, **kwargs) -> None:
+        with db.with_project_schema_session(project.id) as tenant_db:
+            tenant_db.execute(schema.DropSchema(PROJECT_SCHEMA_TEMPLATE.format(project.id), cascade=True))
             tenant_db.commit()
 
 
 class ProjectPermissions(ProjectCreationStep):
     name = 'project_permissions'
 
-    def create(self, project_id: int) -> None:
+    def create(self, project: Project, **kwargs) -> None:
         project_roles = auth.get_roles(mode='default')
         project_permissions = auth.get_permissions(mode='default')
-        log.info('after permissions received')
-        self.module.context.rpc_manager.call.admin_add_role(project_id, [i["name"] for i in project_roles])
-        log.info('after roles added')
+        self.module.context.rpc_manager.call.admin_add_role(project.id, [i["name"] for i in project_roles])
         for permission in project_permissions:
             self.module.context.rpc_manager.call.admin_set_permission_for_role(
-                project_id, permission['name'], permission["permission"]
+                project.id, permission['name'], permission["permission"]
             )
-        log.info('after permissions set for roles')
 
-    def delete(self, project_id: int, **kwargs) -> None:
+    def delete(self, **kwargs) -> None:
         ...
 
 
 class SystemUser(ProjectCreationStep):
     name = 'system_user'
 
-    def create(self, project_id: int) -> int:
+    def create(self, project: Project, **kwargs) -> dict:
         # Auth: create project user
         try:
-            user = get_project_user(project_id)
+            user = get_project_user(project.id)
             return user['id']
         except (NoResultFound, RuntimeError):
             ...
-        user_name = PROJECT_USER_NAME_TEMPLATE.format(project_id)
-        user_email = PROJECT_USER_EMAIL_TEMPLATE.format(project_id)
+        user_name = PROJECT_USER_NAME_TEMPLATE.format(project.id)
+        user_email = PROJECT_USER_EMAIL_TEMPLATE.format(project.id)
         user_id = auth.add_user(user_email, user_name)
         auth.assign_user_to_role(
             user_id=user_id,
             role_name='system',
             mode=c.DEFAULT_MODE,
-            project_id=project_id
+            project_id=project.id
         )
-        return user_id
+        return {'system_user_id': user_id}
 
-    def delete(self, system_user_id: int, **kwargs):
+    def delete(self, system_user_id: int, **kwargs) -> None:
         auth.delete_user(system_user_id)
 
 
 class SystemToken(ProjectCreationStep):
     name = 'system_token'
 
-    def create(self, system_user_id: int) -> str:
+    def create(self, system_user_id: int, **kwargs) -> dict:
         # Auth: add project token
         all_tokens = auth.list_tokens(system_user_id)
         #
@@ -159,7 +152,7 @@ class SystemToken(ProjectCreationStep):
         else:
             token_id = all_tokens[0]["id"]
         #
-        return auth.encode_token(token_id)
+        return {'system_token': auth.encode_token(token_id)}
 
     def delete(self, system_user_id: int, **kwargs) -> None:
         for i in auth.list_tokens(system_user_id):
@@ -169,13 +162,11 @@ class SystemToken(ProjectCreationStep):
 class ProjectSecrets(ProjectCreationStep):
     name = 'project_secrets'
 
-    def create(self, project: Project, system_token: str) -> VaultClient:
+    def create(self, project: Project, system_token: str, **kwargs) -> dict[str, VaultClient]:
         vault_client = VaultClient.from_project(project)
         project_vault_data = vault_client.create_project_space()
-        log.info('after vault init_project space')
         project.secrets_json = project_vault_data.dict(by_alias=True)
         project.commit()
-        log.info('after project secrets_json set')
 
         project_secrets = {
             'backend_performance_results_retention': vault_client.get_all_secrets().get(
@@ -191,11 +182,9 @@ class ProjectSecrets(ProjectCreationStep):
         project_secrets["auth_token"] = system_token
 
         vault_client.set_secrets(project_secrets)
-        log.info('after set_secrets')
         vault_client.set_hidden_secrets(project_hidden_secrets)
-        log.info('after set_hidden_secrets')
 
-        return VaultClient.from_project(project)
+        return {'vault_client': VaultClient.from_project(project)}
 
     def delete(self, project: Project, **kwargs) -> None:
         VaultClient.from_project(project).remove_project_space()
@@ -204,7 +193,7 @@ class ProjectSecrets(ProjectCreationStep):
 class RabbitVhost(ProjectCreationStep):
     name = 'rabbit_vhost'
 
-    def create(self, vault_client: VaultClient) -> None:
+    def create(self, vault_client: VaultClient, **kwargs) -> None:
         all_secrets = vault_client.get_all_secrets()
 
         # prepare user credentials
@@ -241,7 +230,7 @@ class RabbitVhost(ProjectCreationStep):
 class InfluxDatabases(ProjectCreationStep):
     name = 'influx_databases'
 
-    def create(self, vault_client: VaultClient) -> None:
+    def create(self, vault_client: VaultClient, **kwargs) -> None:
         # vault_client = VaultClient.from_project(project_id)
         secrets = vault_client.get_all_secrets()
         client = get_client(vault_client.project_id, secrets=secrets)
@@ -260,10 +249,26 @@ class InfluxDatabases(ProjectCreationStep):
             client.query(f"drop database {db_name}")
 
 
+class ProjectAdmin(ProjectCreationStep):
+    name = 'project_admin'
+
+    def create(self, project_model: ProjectCreatePD, project: Project, **kwargs) -> None:
+        ROLES = ['admin', ]
+        self.module.add_user_to_project_or_create(
+            # user_name=project_model.project_admin_email,
+            user_email=project_model.project_admin_email,
+            project_id=project.id,
+            roles=ROLES
+        )
+
+    def delete(self, **kwargs) -> None:
+        ...
+
+
 class Invitations(ProjectCreationStep):
     name = 'invitations'
 
-    def create(self, project_model: ProjectCreatePD) -> None:
+    def create(self, project_model: ProjectCreatePD, **kwargs) -> None:
         if project_model.invitation_integration:
             log.info(f'sending invitation {project_model.invitation_integration=}')
             invitation_integration = json.loads(
@@ -278,14 +283,15 @@ class Invitations(ProjectCreationStep):
                 'template': invitation_integration['template'],
             }], email_integration.task_id)
 
-    def delete(self, *args, **kwargs) -> None:
+    def delete(self, **kwargs) -> None:
         ...
+
 
 # We initialize classes to form project creation sequence
 
 
-def get_steps(module=None):
-    for step in [
+def get_steps(module=None, reverse: bool = False):
+    steps = [
         ProjectModel,
         MinioBuckets,
         ProjectSchema,
@@ -295,6 +301,10 @@ def get_steps(module=None):
         ProjectSecrets,
         RabbitVhost,
         InfluxDatabases,
+        ProjectAdmin,
         Invitations
-    ]:
+    ]
+    if reverse:
+        steps = reversed(steps)
+    for step in steps:
         yield step(module)

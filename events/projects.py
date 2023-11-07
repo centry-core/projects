@@ -5,4 +5,5 @@ class Event:
 
     @web.event(f"auth_visitor")
     def personal_project(self, context, event, payload):
+        return
         self.create_personal_project(payload)
