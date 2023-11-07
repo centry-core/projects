@@ -79,7 +79,7 @@ class ProjectCreationStep(ABC):
         return f'<Step: {self.name} {" ".join(extra)}>'
 
     @abstractmethod
-    def create(self, *args, **kwargs) -> Any:
+    def create(self, *args, **kwargs) -> dict | None | Any:
         ...
 
     @abstractmethod
