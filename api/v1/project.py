@@ -88,7 +88,8 @@ class AdminAPI(api_tools.APIModeHandler):
                         context.update(step_result)
                     else:
                         context[step.name] = step_result
-
+            context['project'].create_success = True
+            context['project'].commit()
             self.module.context.event_manager.fire_event('project_created', context['project'].to_json())
 
         except Exception as e:

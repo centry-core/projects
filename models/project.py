@@ -11,33 +11,29 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-from queue import Empty
-from typing import Optional, List, Union, Tuple, Any
-from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_
+from typing import Optional
+from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_, Boolean
 from sqlalchemy.ext.mutable import MutableDict
 
-
 from tools import rpc_tools, db, db_tools, MinioClient
-
-from ..tools.session_project import SessionProject
 
 
 class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     __tablename__ = "project"
 
-    API_EXCLUDE_FIELDS = ("secrets_json", )
+    API_EXCLUDE_FIELDS = ("secrets_json",)
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(256), unique=False)
-    owner_id = Column(Integer, unique=False)
-    secrets_json = Column(JSON, unique=False, default={})
+    name = Column(String(256), nullable=False)
+    owner_id = Column(Integer, nullable=False)
+    secrets_json = Column(JSON, default={})
     # worker_pool_config_json = Column(JSON, unique=False, default={})
-    plugins = Column(ARRAY(Text), unique=False, default={})
+    plugins = Column(ARRAY(Text), default={})
     keycloak_groups = Column(
         'keycloak_groups', MutableDict.as_mutable(JSON),
         nullable=False, default={},
     )
-    status = Column(JSON, nullable=False, default={})
+    create_success = Column(Boolean, nullable=False, default=False)
 
     def get_data_retention_limit(self) -> Optional[int]:
         from .quota import ProjectQuota
