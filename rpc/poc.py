@@ -10,8 +10,7 @@ from pylon.core.tools import log
 
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
-from ..utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
-    ProjectSecrets, InfluxDatabases, RabbitVhost, ProjectPermissions
+from ..utils.project_steps import create_project
 
 
 class RPC:
@@ -134,36 +133,14 @@ class RPC:
                 plugins=['configuration', 'models']
             )
 
+            context = {
+                'project_model': project_model,
+                'owner_id': user_id,
+                'roles': ['editor', 'viewer']
+            }
+
             try:
-                # Create project model
-                project = ProjectModel().create(project_model, user_id)
-
-                # Create project schema
-                ProjectSchema().create(project.id)
-
-                # Get permissions and roles
-                ProjectPermissions(self).create(project.id)
-
-                # Create system user and token
-                system_user_id = SystemUser().create(project.id)
-                system_token = SystemToken().create(system_user_id)
-
-                # Create project secrets
-                vault_client = ProjectSecrets().create(project, system_token)
-
-                # Init project databases
-                RabbitVhost().create(vault_client)
-                InfluxDatabases().create(vault_client)
-
-                # create project admin
-                ROLES = ['editor', 'viewer']
-                self.add_user_to_project_or_create(
-                    user_email=project_model.project_admin_email,
-                    project_id=project.id,
-                    roles=ROLES
-                )
-
-                self.context.event_manager.fire_event('project_created', project.to_json())
+                create_project(self, context)
                 log.info(f'Personal project {project_name} created')
 
             except Exception:

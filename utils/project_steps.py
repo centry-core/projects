@@ -307,3 +307,19 @@ def get_steps(module=None, reverse: bool = False):
         steps = reversed(steps)
     for step in steps:
         yield step(module)
+
+
+def create_project(module, context: dict) -> list:
+    progress = []
+    for step in get_steps(module):
+        progress.append(step)
+        step_result = step.create(**context)
+        if step_result is not None:
+            if isinstance(step_result, dict):
+                context.update(step_result)
+            else:
+                context[step.name] = step_result
+    context['project'].create_success = True
+    context['project'].commit()
+    module.context.event_manager.fire_event('project_created', context['project'].to_json())
+    return progress

@@ -86,6 +86,7 @@ class Module(module.ModuleModel):
         schedule_data = {
             'name': 'projects_create_personal_project',
             'cron': '*/5 * * * *',
-            'rpc_func': 'projects_create_personal_project'
+            'rpc_func': 'projects_create_personal_project',
+            'active': False
         }
-        self.context.rpc_manager.call.scheduling_create_if_not_exists(schedule_data)
+        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule_data)
