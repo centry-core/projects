@@ -252,13 +252,12 @@ class InfluxDatabases(ProjectCreationStep):
 class ProjectAdmin(ProjectCreationStep):
     name = 'project_admin'
 
-    def create(self, project_model: ProjectCreatePD, project: Project, **kwargs) -> None:
-        ROLES = ['admin', ]
+    def create(self, project_model: ProjectCreatePD, project: Project, roles: list[str], **kwargs) -> None:
         self.module.add_user_to_project_or_create(
             # user_name=project_model.project_admin_email,
             user_email=project_model.project_admin_email,
             project_id=project.id,
-            roles=ROLES
+            roles=roles
         )
 
     def delete(self, **kwargs) -> None:
