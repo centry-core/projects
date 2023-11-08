@@ -77,9 +77,10 @@ class AdminAPI(api_tools.APIModeHandler):
             'owner_id': g.auth.id,
             'roles': ['admin', ]
         }
-
+        
         try:
             progress = create_project(self.module, context)
+
         except Exception as e:
             log.critical(format_exc())
             status_code = 400
