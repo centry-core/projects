@@ -77,6 +77,7 @@ class AdminAPI(api_tools.APIModeHandler):
         context = {
             'project_model': project_model,
             'owner_id': g.auth.id,
+            'roles': ['admin', ]
         }
         progress = []
         try:
