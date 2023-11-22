@@ -15,6 +15,8 @@
 """ Module """
 
 from collections import defaultdict
+from queue import Empty
+
 import flask
 
 from pylon.core.tools import module, log  # pylint: disable=E0611,E0401
@@ -60,7 +62,10 @@ class Module(module.ModuleModel):
 
         self.context.app.before_request(self._before_request_hook)
 
-        self.create_scheduling()
+        try:
+            self.create_scheduling()
+        except Empty:
+            ...
         # self.descriptor.register_tool('projects', self)
 
         # rabbit_tools.create_administration_user_and_vhost()
