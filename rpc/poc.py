@@ -1,3 +1,4 @@
+from collections import defaultdict
 from traceback import format_exc
 from typing import Optional
 
@@ -9,8 +10,7 @@ from pylon.core.tools import log
 
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
-from ..utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
-    ProjectSecrets, InfluxDatabases, RabbitVhost, ProjectPermissions
+from ..utils.project_steps import create_project
 
 
 class RPC:
@@ -42,8 +42,8 @@ class RPC:
         if user:
             project_users = self.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
             user_exists = False
-            for u in project_users:
-                if user['id'] == u['auth_id']:
+            for user_id in project_users:
+                if user['id'] == user_id:
                     user_exists = True
                     break
             if user_exists:
@@ -111,60 +111,39 @@ class RPC:
             }
 
 
-    @web.rpc("project_create_personal_project", "create_personal_project")
+    @web.rpc("projects_create_personal_project", "create_personal_project")
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def create_personal_project(self, user_data: dict) -> None:
-        if not isinstance(user_data.get('id', ''), int):
-            return
+    def create_personal_project(self) -> None:
+        for user_data in self.visitors.values():
+            if not isinstance(user_data.get('id', ''), int):
+                continue
 
-        user_id = user_data['id']
-        if user_data.get('type', '') == 'token':
-            user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
+            user_id = user_data['id']
+            if user_data.get('type', '') == 'token':
+                user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
 
-        project_name = c.PERSONAL_PROJECT_NAME.format(user_id=user_id)
-        projects = Project.list_projects()
+            project_name = c.PERSONAL_PROJECT_NAME.format(user_id=user_id)
+            projects = Project.list_projects()
+            if any(project['name'] == project_name for project in projects):
+                continue
 
-        if any(project['name'] == project_name for project in projects):
-            return
-
-        project_model = ProjectCreatePD(
-            name=project_name,
-            project_admin_email=self.context.rpc_manager.call.auth_get_user(user_id)['email'],
-            plugins=['configuration', 'models']
-        )
-
-        try:
-            # Create project model
-            project = ProjectModel().create(project_model, user_id)
-
-            # Create project schema
-            ProjectSchema().create(project.id)
-
-            # Get permissions and roles
-            ProjectPermissions(self).create(project.id)
-
-            # Create system user and token
-            system_user_id = SystemUser().create(project.id)
-            system_token = SystemToken().create(system_user_id)
-
-            # Create project secrets
-            vault_client = ProjectSecrets().create(project, system_token)
-
-            # Init project databases
-            RabbitVhost().create(vault_client)
-            InfluxDatabases().create(vault_client)
-
-            # create project admin
-            ROLES = ['editor', 'viewer']
-            self.add_user_to_project_or_create(
-                # user_name=project_model.project_admin_email,
-                user_email=project_model.project_admin_email,
-                project_id=project.id,
-                roles=ROLES
+            project_model = ProjectCreatePD(
+                name=project_name,
+                project_admin_email=self.context.rpc_manager.call.auth_get_user(user_id)['email'],
+                plugins=['configuration', 'models']
             )
 
-            self.context.event_manager.fire_event('project_created', project.to_json())
-            log.info(f'Personal project {project_name} created')
+            context = {
+                'project_model': project_model,
+                'owner_id': user_id,
+                'roles': ['editor', 'viewer']
+            }
 
-        except Exception as e:
-            log.critical(format_exc())
+            try:
+                create_project(self, context)
+                log.info(f'Personal project {project_name} created')
+
+            except Exception:
+                log.critical(format_exc())
+
+        self.visitors = defaultdict(dict)

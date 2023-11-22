@@ -13,9 +13,7 @@ from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
 
 from ...utils import get_project_user
-from ...utils.project_steps import ProjectModel, ProjectSchema, SystemUser, SystemToken, \
-    ProjectSecrets, \
-    InfluxDatabases, RabbitVhost, get_steps, ProjectPermissions, Invitations
+from ...utils.project_steps import create_project, get_steps
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -79,19 +77,9 @@ class AdminAPI(api_tools.APIModeHandler):
             'owner_id': g.auth.id,
             'roles': ['admin', ]
         }
-        progress = []
+        
         try:
-            for step in get_steps(self.module):
-                progress.append(step)
-                step_result = step.create(**context)
-                if step_result is not None:
-                    if isinstance(step_result, dict):
-                        context.update(step_result)
-                    else:
-                        context[step.name] = step_result
-            context['project'].create_success = True
-            context['project'].commit()
-            self.module.context.event_manager.fire_event('project_created', context['project'].to_json())
+            progress = create_project(self.module, context)
 
         except Exception as e:
             log.critical(format_exc())
