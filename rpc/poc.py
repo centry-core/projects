@@ -1,4 +1,5 @@
 from collections import defaultdict
+import re
 from traceback import format_exc
 from typing import Optional
 
@@ -11,6 +12,7 @@ from pylon.core.tools import log
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
 from ..utils.project_steps import create_project
+from ..constants import PROJECT_PERSONAL_NAME_TEMPLATE, PROJECT_USER_EMAIL_TEMPLATE
 
 
 class RPC:
@@ -110,7 +112,6 @@ class RPC:
                 'email': user_email
             }
 
-
     @web.rpc("projects_create_personal_project", "create_personal_project")
     @rpc_tools.wrap_exceptions(RuntimeError)
     def create_personal_project(self) -> None:
@@ -122,7 +123,7 @@ class RPC:
             if user_data.get('type', '') == 'token':
                 user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
 
-            project_name = c.PERSONAL_PROJECT_NAME.format(user_id=user_id)
+            project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
             projects = Project.list_projects()
             if any(project['name'] == project_name for project in projects):
                 continue
@@ -147,3 +148,21 @@ class RPC:
                 log.critical(format_exc())
 
         self.visitors = defaultdict(dict)
+
+    @web.rpc("projects_get_personal_project_id", "get_personal_project_id")
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_personal_project_id(self, user_id: int) -> None:
+        if not user_id:
+            return
+        project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
+        project = Project.query.filter(Project.name == project_name).first()
+
+        if project and self.context.rpc_manager.call.admin_check_user_in_project(project.id, user_id):
+            return project.id
+
+        if not project:
+            if user:= auth.get_user(user_id=user_id):
+                system_user_email = PROJECT_USER_EMAIL_TEMPLATE.format(r'(\d+)')
+                match = re.match(rf"^{system_user_email}$", user['email'])
+                if match:
+                    return int(match.groups()[0])
