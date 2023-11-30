@@ -151,7 +151,7 @@ class RPC:
 
     @web.rpc("projects_get_personal_project_id", "get_personal_project_id")
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def get_personal_project_id(self, user_id: int) -> None:
+    def get_personal_project_id(self, user_id: int) -> int | None:
         if not user_id:
             return
         project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
