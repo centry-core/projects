@@ -15,6 +15,41 @@ from ..utils.project_steps import create_project
 from ..constants import PROJECT_PERSONAL_NAME_TEMPLATE, PROJECT_USER_EMAIL_TEMPLATE
 
 
+def create_keycloak_user(user_email: str, *, rpc_manager, default_password: str = "11111111") -> None:
+    keycloak_token = rpc_manager.call.auth_manager_get_token()
+    user_data = {
+        "username": user_email,
+        "email": user_email,
+        "enabled": True,
+        "totp": False,
+        "emailVerified": False,
+        "disableableCredentialTypes": [],
+        "requiredActions": ["UPDATE_PASSWORD"],
+        "notBefore": 0,
+        "access": {
+            "manageGroupMembership": True,
+            "view": True,
+            "mapRoles": True,
+            "impersonate": True,
+            "manage": True
+        },
+        "credentials": [{
+            "type": "password",
+            "value": default_password,
+            "temporary": True
+        }, ]
+    }
+    log.info('creating keycloak entry')
+    user = rpc_manager.call.auth_manager_create_user_representation(
+        user_data=user_data
+    )
+    rpc_manager.call.auth_manager_post_user(
+        realm='carrier', token=keycloak_token, entity=user
+    )
+    log.info('after keycloak')
+
+
+
 class RPC:
     @web.rpc("list_user_projects", "list_user_projects")
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -65,38 +100,10 @@ class RPC:
             }
         else:
             log.info('user %s not found. creating user', user_email)
-            keycloak_token = self.context.rpc_manager.call.auth_manager_get_token()
-            user_data = {
-                "username": user_email,
-                "email": user_email,
-                "enabled": True,
-                "totp": False,
-                "emailVerified": False,
-                "disableableCredentialTypes": [],
-                "requiredActions": ["UPDATE_PASSWORD"],
-                "notBefore": 0,
-                "access": {
-                    "manageGroupMembership": True,
-                    "view": True,
-                    "mapRoles": True,
-                    "impersonate": True,
-                    "manage": True
-                },
-                "credentials": [{
-                    "type": "password",
-                    "value": "11111111",
-                    "temporary": True
-
-                }, ]
-            }
-            log.info('creating keycloak entry')
-            user = self.context.rpc_manager.call.auth_manager_create_user_representation(
-                user_data=user_data
-            )
-            self.context.rpc_manager.call.auth_manager_post_user(
-                realm='carrier', token=keycloak_token, entity=user
-            )
-            log.info('after keycloak')
+            try:
+                create_keycloak_user(user_email, rpc_manager=self.context.rpc_manager)
+            except Exception as e:
+                log.warning(f'Keycloak user cannot be created {e}')
 
             user_id = auth.add_user(user_email)
             # auth.add_user_provider(user_id, user_name)
