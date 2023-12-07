@@ -173,3 +173,12 @@ class RPC:
                 match = re.match(rf"^{system_user_email}$", user['email'])
                 if match:
                     return int(match.groups()[0])
+
+    @web.rpc("projects_get_personal_project_ids", "get_personal_project_ids")
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_personal_project_ids(self) -> list[int]:
+        projects_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id='%')
+        projects = Project.query.with_entities(Project.id).filter(
+            Project.name.like(projects_name)).all()
+        return [project_data[0] for project_data in projects]
+
