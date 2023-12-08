@@ -21,6 +21,7 @@ from pylon.core.tools import log
 
 from ..models.project import Project
 from tools import VaultClient
+from tools import config as c
 
 
 def password_generator(length=16):
@@ -41,6 +42,9 @@ def password_generator(length=16):
 
 def create_rabbit_user_and_vhost(rabbit_admin_url: str, rabbit_admin_auth: Tuple[str, str],
                                  user: str, password: str, vhost: str) -> None:
+    if c.ARBITER_RUNTIME != "rabbitmq":
+        return
+
     # connect to RabbitMQ management api
     rabbit_client = AdminAPI(url=rabbit_admin_url, auth=rabbit_admin_auth)
 
@@ -52,6 +56,9 @@ def create_rabbit_user_and_vhost(rabbit_admin_url: str, rabbit_admin_auth: Tuple
 
 def delete_rabbit_user_and_vhost(rabbit_admin_url: str, rabbit_admin_auth: Tuple[str, str],
                                  user: str, vhost: str, **kwargs) -> None:
+    if c.ARBITER_RUNTIME != "rabbitmq":
+        return
+
     # connect to RabbitMQ management api
     rabbit_client = AdminAPI(url=rabbit_admin_url, auth=rabbit_admin_auth)
 
@@ -62,15 +69,16 @@ def delete_rabbit_user_and_vhost(rabbit_admin_url: str, rabbit_admin_auth: Tuple
 
 
 def fix_rabbit_vhost(project: Project) -> None:
+    if c.ARBITER_RUNTIME != "rabbitmq":
+        return
     log.info('Fixing rabbit queues for project %s', project.id)
     vc = VaultClient(project)
     all_secrets = vc.get_all_secrets()
 
     create_rabbit_user_and_vhost(
-        rabbit_admin_url='http://carrier-rabbit:15672',
+        rabbit_admin_url=c.RABBIT_ADMIN_URL,
         rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
         user=all_secrets['rabbit_project_user'],
         password=all_secrets['rabbit_project_password'],
         vhost=all_secrets['rabbit_project_vhost']
     )
-

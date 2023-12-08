@@ -194,6 +194,9 @@ class RabbitVhost(ProjectCreationStep):
     name = 'rabbit_vhost'
 
     def create(self, vault_client: VaultClient, **kwargs) -> None:
+        if c.ARBITER_RUNTIME != "rabbitmq":
+            return
+
         all_secrets = vault_client.get_all_secrets()
 
         # prepare user credentials
@@ -202,7 +205,7 @@ class RabbitVhost(ProjectCreationStep):
         vhost = PROJECT_RABBIT_VHOST_TEMPLATE.format(vault_client.project_id)
 
         create_rabbit_user_and_vhost(
-            rabbit_admin_url='http://carrier-rabbit:15672',
+            rabbit_admin_url=c.RABBIT_ADMIN_URL,
             rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
             user=user,
             password=password,
@@ -217,10 +220,12 @@ class RabbitVhost(ProjectCreationStep):
         vault_client.set_secrets(secrets)
 
     def delete(self, vault_client: VaultClient, **kwargs) -> None:
+        if c.ARBITER_RUNTIME != "rabbitmq":
+            return
         all_secrets = vault_client.get_all_secrets()
         secrets = vault_client.get_secrets()
         delete_rabbit_user_and_vhost(
-            rabbit_admin_url='http://carrier-rabbit:15672',
+            rabbit_admin_url=c.RABBIT_ADMIN_URL,
             rabbit_admin_auth=(all_secrets["rabbit_user"], all_secrets["rabbit_password"]),
             user=secrets["rabbit_project_user"],
             vhost=secrets["rabbit_project_vhost"]
@@ -231,6 +236,8 @@ class InfluxDatabases(ProjectCreationStep):
     name = 'influx_databases'
 
     def create(self, vault_client: VaultClient, **kwargs) -> None:
+        if not c.CENTRY_USE_INFLUX:
+            return
         # vault_client = VaultClient.from_project(project_id)
         secrets = vault_client.get_all_secrets()
         client = get_client(vault_client.project_id, secrets=secrets)
@@ -241,6 +248,8 @@ class InfluxDatabases(ProjectCreationStep):
             )
 
     def delete(self, vault_client: VaultClient, **kwargs) -> None:
+        if not c.CENTRY_USE_INFLUX:
+            return
         # vault_client = VaultClient.from_project(project_id)
         secrets = vault_client.get_all_secrets()
         client = get_client(vault_client.project_id, secrets=secrets)
