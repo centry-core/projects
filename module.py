@@ -41,11 +41,11 @@ class Module(module.ModuleModel):
         from . import constants as pc
         self.descriptor.register_tool('project_constants', {i: getattr(pc, i) for i in dir(pc) if not i.startswith('_')})
 
-        try:
-            # Run DB migrations
-            db_migrations.run_db_migrations(self, c.DATABASE_URI)
-        except ProgrammingError as e:
-            log.info(e)
+        # try:
+        #     # Run DB migrations
+        #     db_migrations.run_db_migrations(self, c.DATABASE_URI)
+        # except ProgrammingError as e:
+        #     log.info(e)
 
         from .tools import session_plugins, session_project, influx_tools
         self.descriptor.register_tool('session_plugins', session_plugins.SessionProjectPlugin)
