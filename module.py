@@ -70,11 +70,12 @@ class Module(module.ModuleModel):
 
         # rabbit_tools.create_administration_user_and_vhost()
 
-        for p in Project.query.all():
-            try:
-                fix_rabbit_vhost(p)
-            except:
-                log.warning('Couldn\'t fix rabbit for project %s', p)
+        if c.ARBITER_RUNTIME == "rabbitmq":
+            for p in Project.query.all():
+                try:
+                    fix_rabbit_vhost(p)
+                except:
+                    log.warning('Couldn\'t fix rabbit for project %s', p)
 
 
 
