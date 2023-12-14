@@ -6,6 +6,7 @@ from typing import Optional
 from tools import auth
 from tools import rpc_tools
 from tools import config as c
+from tools import context
 from pylon.core.tools import web
 from pylon.core.tools import log
 
@@ -16,6 +17,9 @@ from ..constants import PROJECT_PERSONAL_NAME_TEMPLATE, PROJECT_USER_EMAIL_TEMPL
 
 
 def create_keycloak_user(user_email: str, *, rpc_manager, default_password: str = "11111111") -> None:
+    if "auth_manager" not in context.module_manager.modules:
+        return
+    #
     keycloak_token = rpc_manager.call.auth_manager_get_token()
     user_data = {
         "username": user_email,
@@ -181,4 +185,3 @@ class RPC:
         projects = Project.query.with_entities(Project.id).filter(
             Project.name.like(projects_name)).all()
         return [project_data[0] for project_data in projects]
-
