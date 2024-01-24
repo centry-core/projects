@@ -44,10 +44,10 @@ class RPC:
     def get_storage_quota(self, project_id):
         return Project.get_storage_space_quota(project_id=project_id)
 
-    # @web.rpc('project_check_quota', 'check_quota')
-    # @rpc_tools.wrap_exceptions(RuntimeError)
-    # def check_quota(self, project_id, quota=None):
-    #     return ProjectQuota.check_quota_json(project_id, quota)
+    @web.rpc('project_check_quota', 'check_quota')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def check_quota(self, project_id, quota=None):
+        return ProjectQuota.check_quota_json(project_id, quota)
 
     @web.rpc('project_get_id', 'get_id')
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -107,4 +107,3 @@ class RPC:
             except ValueError:
                 ...
         return queues
-
