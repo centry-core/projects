@@ -23,9 +23,9 @@ class ProjectAPI(api_tools.APIModeHandler):
             "default": {"admin": True, "viewer": True, "editor": True},
             "developer": {"admin": True, "viewer": True, "editor": True},
         }})
-    def get(self, project_id: int | None = None) -> tuple[dict, int] | tuple[list, int]:
-        log.info('g.auth.id %s', g.auth.id)
-        if g.auth.id is None:
+    def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
+        user_id = auth.current_user().get("id")
+        if not user_id:
             return list(), 200
         #
         offset_ = request.args.get("offset")
@@ -33,7 +33,7 @@ class ProjectAPI(api_tools.APIModeHandler):
         search_ = request.args.get("search")
         #
         return self.module.list_user_projects(
-            g.auth.id, offset_=offset_, limit_=limit_, search_=search_
+            user_id, offset_=offset_, limit_=limit_, search_=search_
         ), 200
 
 
@@ -44,8 +44,8 @@ class AdminAPI(api_tools.APIModeHandler):
             "administration": {"admin": True, "viewer": True, "editor": True},
         }})
     def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
-        log.info('g.auth.id %s', g.auth.id)
-        if g.auth.id is None:
+        user_id = auth.current_user().get("id")
+        if not user_id:
             return list(), 200
         #
         offset_ = request.args.get("offset")
@@ -53,7 +53,7 @@ class AdminAPI(api_tools.APIModeHandler):
         search_ = request.args.get("search")
         #
         return self.module.list_user_projects(
-            g.auth.id, offset_=offset_, limit_=limit_, search_=search_
+            user_id, offset_=offset_, limit_=limit_, search_=search_
         ), 200
 
     @auth.decorators.check_api({
