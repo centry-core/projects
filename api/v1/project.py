@@ -1,4 +1,5 @@
 import json
+from queue import Empty
 from traceback import format_exc
 from typing import Optional, Tuple, List
 from flask import request, g
@@ -32,9 +33,33 @@ class ProjectAPI(api_tools.APIModeHandler):
         limit_ = request.args.get("limit")
         search_ = request.args.get("search")
         #
-        return self.module.list_user_projects(
+        check_public_role = request.args.get("check_public_role")
+        projects = self.module.list_user_projects(
             user_id, offset_=offset_, limit_=limit_, search_=search_
-        ), 200
+        )
+
+        if check_public_role:
+            vault_client = VaultClient()
+            secrets = vault_client.get_all_secrets()
+            try:
+                public_project = int(secrets['ai_project_id'])
+                public_admin = secrets['ai_public_admin']
+                filtered_ids = list()
+                for project in projects:
+                    if project['id'] == public_project:
+                        roles = [role['name'] for role in self.module.context.rpc_manager.timeout(
+                            2
+                        ).admin_get_user_roles(
+                            public_project, user_id
+                        )]
+                        if public_admin in roles:
+                            filtered_ids.append(project['id'])
+                projects = [p for p in projects if p['id'] in filtered_ids]
+            except KeyError as e:
+                log.error(e)
+            except Empty as e:
+                log.error(e)
+        return projects, 200
 
 
 class AdminAPI(api_tools.APIModeHandler):
