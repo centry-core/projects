@@ -42,21 +42,20 @@ class ProjectAPI(api_tools.APIModeHandler):
             vault_client = VaultClient()
             secrets = vault_client.get_all_secrets()
             try:
-                public_project = int(secrets['ai_project_id'])
-                public_admin = secrets['ai_public_admin']
-                filtered_ids = list()
-                for project in projects:
-                    if project['id'] == public_project:
-                        roles = [role['name'] for role in self.module.context.rpc_manager.timeout(
+                public_project_id = int(secrets['ai_project_id'])
+                public_admin_role = secrets['ai_public_admin_role']
+
+                def check_public_project_allowed(project) -> bool:
+                    if project['id'] == public_project_id:
+                        roles = {role['name'] for role in self.module.context.rpc_manager.timeout(
                             2
-                        ).admin_get_user_roles(
-                            public_project, user_id
-                        )]
-                        if public_admin in roles:
-                            filtered_ids.append(project['id'])
-                projects = [p for p in projects if p['id'] in filtered_ids]
+                        ).admin_get_user_roles(public_project_id, user_id)}
+                        return public_admin_role in roles
+                    return True
+
+                projects = list(filter(check_public_project_allowed, projects))
             except KeyError as e:
-                log.error(e)
+                log.info('public_project_id or public_admin_role secrets are not set')
             except Empty as e:
                 log.error(e)
         return projects, 200
@@ -102,7 +101,7 @@ class AdminAPI(api_tools.APIModeHandler):
             'owner_id': g.auth.id,
             'roles': ['admin', ]
         }
-        
+
         try:
             progress = create_project(self.module, context)
 
