@@ -36,6 +36,9 @@ class ProjectModel(ProjectCreationStep):
         ProjectQuota.create(
             project_id=project.id,
             data_retention_limit=project_model.data_retention_limit,
+            test_duration_limit=project_model.test_duration_limit,
+            cpu_limit=project_model.cpu_limit,
+            memory_limit=project_model.memory_limit,
             vcu_hard_limit=project_model.vcu_hard_limit,
             vcu_soft_limit=project_model.vcu_soft_limit,
             vcu_limit_total_block=project_model.vcu_limit_total_block,

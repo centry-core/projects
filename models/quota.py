@@ -29,6 +29,12 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     # vuh_limit = Column(Integer, unique=False, nullable=False)
     # storage_space = Column(Integer, unique=False)
     data_retention_limit = Column(Integer, unique=False)
+    # ALTER TABLE project_quota ADD COLUMN test_duration_limit INTEGER;
+    test_duration_limit = Column(Integer, unique=False, default=-1)
+    # ALTER TABLE project_quota ADD COLUMN cpu_limit INTEGER;
+    cpu_limit = Column(Integer, unique=False, default=-1)
+    # ALTER TABLE project_quota ADD COLUMN memory_limit INTEGER;
+    memory_limit = Column(Integer, unique=False, default=-1)
     last_update_time = Column(DateTime, server_default=data_tools.utcnow())
     dast_scans = Column(Integer, unique=False, default=-1)
     sast_scans = Column(Integer, default=-1)
@@ -93,11 +99,15 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
         return ProjectQuota.query.filter(ProjectQuota.project_id == project_id).first().to_json()
 
     @staticmethod
-    def _update_quota(project_id, data_retention_limit, vcu_hard_limit, vcu_soft_limit, 
-            vcu_limit_total_block, storage_hard_limit, storage_soft_limit, storage_limit_total_block):
+    def _update_quota(project_id, data_retention_limit, test_duration_limit, cpu_limit, memory_limit, vcu_hard_limit,
+                      vcu_soft_limit, vcu_limit_total_block, storage_hard_limit, storage_soft_limit,
+                      storage_limit_total_block):
         quota = ProjectQuota.query.filter_by(project_id=project_id).first()
         if quota:
             quota.data_retention_limit = data_retention_limit
+            quota.test_duration_limit = test_duration_limit
+            quota.cpu_limit = cpu_limit
+            quota.memory_limit = memory_limit
             quota.vcu_hard_limit = vcu_hard_limit
             quota.vcu_soft_limit = vcu_soft_limit
             quota.vcu_limit_total_block = vcu_limit_total_block
@@ -107,6 +117,7 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
             quota.commit()
         else:
             quota = ProjectQuota(project_id=project_id, data_retention_limit=data_retention_limit,
+                                 test_duration_limit=test_duration_limit, cpu_limit=cpu_limit, memory_limit=memory_limit,
                 vcu_hard_limit=vcu_hard_limit, vcu_soft_limit=vcu_soft_limit, 
                 vcu_limit_total_block=vcu_limit_total_block, storage_hard_limit=storage_hard_limit, 
                 storage_soft_limit=storage_soft_limit, storage_limit_total_block=storage_limit_total_block)
@@ -114,10 +125,11 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
         return quota
 
     @staticmethod
-    def create(project_id, data_retention_limit, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block, 
+    def create(project_id, data_retention_limit, test_duration_limit, cpu_limit, memory_limit, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block,
             storage_hard_limit, storage_soft_limit, storage_limit_total_block):
         return ProjectQuota._update_quota(project_id=project_id,
-            data_retention_limit=data_retention_limit, vcu_hard_limit=vcu_hard_limit,
+            data_retention_limit=data_retention_limit, test_duration_limit=test_duration_limit, cpu_limit=cpu_limit,
+                                          memory_limit=memory_limit, vcu_hard_limit=vcu_hard_limit,
             vcu_soft_limit=vcu_soft_limit, vcu_limit_total_block=vcu_limit_total_block,
             storage_hard_limit=storage_hard_limit, storage_soft_limit=storage_soft_limit,
             storage_limit_total_block=storage_limit_total_block)
