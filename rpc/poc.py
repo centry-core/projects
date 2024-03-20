@@ -185,3 +185,32 @@ class RPC:
         projects = Project.query.with_entities(Project.id).filter(
             Project.name.like(projects_name)).all()
         return [project_data[0] for project_data in projects]
+
+
+    @web.rpc()
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def create_project(self, project_name, plugins, admin_email, owner_id, roles):
+        project_model = ProjectCreatePD(
+            name=project_name,
+            project_admin_email=admin_email,
+            plugins=plugins,
+        )
+        #
+        project_context = {
+            "project_model": project_model,
+            "owner_id": owner_id,
+            "roles": roles,
+        }
+        #
+        try:
+            create_project(self, project_context)
+        except:  # pylint: disable=W0702
+            log.exception("Failed to create public project")
+            return None
+        #
+        project = Project.query.filter(Project.name == project_name).first()
+        #
+        if project:
+            return project.id
+        #
+        return None
