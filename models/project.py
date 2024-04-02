@@ -14,6 +14,7 @@
 from typing import Optional
 from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_, Boolean
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy import select
 
 from tools import rpc_tools, db, db_tools, MinioClient
 
@@ -51,20 +52,17 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     @staticmethod
     def list_projects(project_id: int = None, search_: str = None,
                       limit_: int = None, offset_: int = None, **kwargs) -> dict | list[dict] | None:
-        _filter = None
-        if project_id:
-            project = Project.query.get(project_id)
-            if not project:
-                return
-            return project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
-        elif search_:
-            filter_ = Project.name.ilike(f"%{search_}%")
-            if _filter is not None:
-                filter_ = and_(_filter, filter_)
-            projects = Project.query.filter(filter_).limit(limit_).offset(offset_).all()
-        else:
-            if _filter is not None:
-                projects = Project.query.filter(_filter).limit(limit_).offset(offset_).all()
+        with db.with_project_schema_session(None) as session:
+            if project_id:
+                stmt = select(Project).where(Project.id == project_id)
+                p = session.scalars(stmt).first()
+                if not p:
+                    return
+                return p.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
+            elif search_:
+                stmt = select(Project).filter(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
             else:
-                projects = Project.query.limit(limit_).offset(offset_).all()
-        return [project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS) for project in projects]
+                stmt = select(Project).limit(limit_).offset(offset_)
+
+            projects = session.scalars(stmt).all()
+            return [project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS) for project in projects]
