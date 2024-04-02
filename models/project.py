@@ -51,7 +51,14 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
 
     @staticmethod
     def list_projects(project_id: int = None, search_: str = None,
-                      limit_: int = None, offset_: int = None, **kwargs) -> dict | list[dict] | None:
+                      limit_: int = None, offset_: int = None,
+                      filter_: Optional[dict] = None, **kwargs) -> dict | list[dict] | None:
+        flt = []
+        if filter_ is not None:
+            for k, v in filter_.items():
+                attr = getattr(Project, k)
+                if attr:
+                    flt.append(attr == v)
         with db.with_project_schema_session(None) as session:
             if project_id:
                 stmt = select(Project).where(Project.id == project_id)
@@ -60,9 +67,9 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
                     return
                 return p.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
             elif search_:
-                stmt = select(Project).filter(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
+                stmt = select(Project).where(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
             else:
-                stmt = select(Project).limit(limit_).offset(offset_)
+                stmt = select(Project).where(*flt).limit(limit_).offset(offset_)
 
             projects = session.scalars(stmt).all()
             return [project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS) for project in projects]
