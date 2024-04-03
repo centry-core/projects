@@ -25,14 +25,15 @@ from tools import db, VaultClient, auth, constants as c, TaskManager, MinioClien
 class ProjectModel(ProjectCreationStep):
     name = 'project_model'
 
-    def create(self, project_model: ProjectCreatePD, owner_id: int, **kwargs) -> dict[str, Project]:
+    def create(self, project_model: ProjectCreatePD, owner_id: int, session, **kwargs) -> dict[str, Project]:
         project = Project(
             name=project_model.name,
             plugins=project_model.plugins,
             owner_id=owner_id
         )
-        project.insert()
-        log.info('after project.insert()')
+        session.add(project)
+        session.commit()
+        log.info('after project.insert')
         ProjectQuota.create(
             project_id=project.id,
             data_retention_limit=project_model.data_retention_limit,
@@ -52,21 +53,23 @@ class ProjectModel(ProjectCreationStep):
             project_id=project.id,
             start_time=str(datetime.utcnow()),
         )
-        statistic.insert()
+        session.add(statistic)
+        session.commit()
         log.info('after statistic created')
         return {'project': project}
 
-    def delete(self, project: Project, **kwargs) -> None:
-        Statistic.query.filter(Statistic.project_id == project.id).delete()
-        Statistic.commit()
+    def delete(self, project: Project, session, **kwargs) -> None:
+        session.query(Statistic).filter(Statistic.project_id == project.id).delete()
+        session.commit()
         log.info('statistic deleted')
 
-        ProjectQuota.query.filter(ProjectQuota.project_id == project.id).delete()
-        ProjectQuota.commit()
+        session.query(ProjectQuota).filter(ProjectQuota.project_id == project.id).delete()
+        session.commit()
         log.info('quota deleted')
 
-        Project.query.get(project.id).delete()
-        Project.commit()
+        # session.query(Project).where(Project.id == project.id).delete()
+        session.delete(project)
+        session.commit()
         log.info('project deleted')
 
 
@@ -165,11 +168,12 @@ class SystemToken(ProjectCreationStep):
 class ProjectSecrets(ProjectCreationStep):
     name = 'project_secrets'
 
-    def create(self, project: Project, system_token: str, **kwargs) -> dict[str, VaultClient]:
+    def create(self, project: Project, system_token: str, session, **kwargs) -> dict[str, VaultClient]:
         vault_client = VaultClient.from_project(project)
         project_vault_data = vault_client.create_project_space()
         project.secrets_json = project_vault_data.dict(by_alias=True)
-        project.commit()
+        session.add(project)
+        session.commit()
 
         project_secrets = {
             'backend_performance_results_retention': vault_client.get_all_secrets().get(
@@ -321,17 +325,35 @@ def get_steps(module=None, reverse: bool = False):
         yield step(module)
 
 
-def create_project(module, context: dict) -> list:
+class ProjectCreateError(Exception):
+    def __init__(self, progress: list, rollback_progress: Optional[list] = None):
+        self.progress = progress
+        self.rollback_progress = rollback_progress or []
+
+
+def create_project(module, context: dict, rollback_on_error: bool = True) -> list:
     progress = []
-    for step in get_steps(module):
-        progress.append(step)
-        step_result = step.create(**context)
-        if step_result is not None:
-            if isinstance(step_result, dict):
-                context.update(step_result)
-            else:
-                context[step.name] = step_result
-    context['project'].create_success = True
-    context['project'].commit()
-    module.context.event_manager.fire_event('project_created', context['project'].to_json())
+    with db.with_project_schema_session(None) as session:
+        context['session'] = session
+        try:
+            for step in get_steps(module):
+                progress.append(step)
+                step_result = step.create(**context)
+                if step_result is not None:
+                    if isinstance(step_result, dict):
+                        context.update(step_result)
+                    else:
+                        context[step.name] = step_result
+        except Exception as e:
+            log.exception('create_project')
+            session.rollback()
+            rollback_progress = []
+            if rollback_on_error:
+                for step in reversed(progress):
+                    step.delete(**context)
+                    rollback_progress.append(step)
+            raise ProjectCreateError(progress, rollback_progress)
+        context['project'].create_success = True
+        session.commit()
+        module.context.event_manager.fire_event('project_created', context['project'].to_json())
     return progress

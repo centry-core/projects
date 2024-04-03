@@ -1,6 +1,4 @@
-import json
 from queue import Empty
-from traceback import format_exc
 from typing import Optional, Tuple, List
 from flask import request, g
 from pylon.core.tools import log
@@ -14,7 +12,7 @@ from ...models.pd.project import ProjectCreatePD
 from ...models.project import Project
 
 from ...utils import get_project_user
-from ...utils.project_steps import create_project, get_steps
+from ...utils.project_steps import create_project, get_steps, ProjectCreateError
 
 
 class ProjectAPI(api_tools.APIModeHandler):
@@ -102,14 +100,21 @@ class AdminAPI(api_tools.APIModeHandler):
             'roles': ['admin', ]
         }
 
+        progress = []
+        rollback_progress = []
         try:
             progress = create_project(self.module, context)
-
+        except ProjectCreateError as e:
+            log.exception('project create')
+            status_code = 400
+            progress = e.progress
+            rollback_progress = e.rollback_progress
         except Exception as e:
-            log.critical(format_exc())
+            log.exception('project create')
             status_code = 400
         statuses: List[dict] = [step.status['created'] for step in progress]
-        return {'steps': statuses}, status_code
+        rollback_steps: List[dict] = [step.status['deleted'] for step in rollback_progress]
+        return {'steps': statuses, 'rollback_steps': rollback_steps}, status_code
 
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.edit"],
@@ -141,27 +146,33 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int):
-        project = Project.query.get_or_404(project_id)
-        try:
-            system_user_id = get_project_user(project.id)['id']
-        except (RuntimeError, KeyError, NoResultFound):
-            system_user_id = None
-
-        context = {
-            'project': project,
-            'vault_client': VaultClient.from_project(project),
-            'system_user_id': system_user_id
-        }
-
-        statuses: List[dict] = []
-        for step in get_steps(self.module, reverse=True):
+        with db.with_project_schema_session(None) as session:
+            project = session.query(Project).where(Project.id == project_id).first()
+            if not project:
+                return None, 404
             try:
-                step.delete(**context)
-            except Exception as e:
-                log.warning('%s error %s', repr(step), e)
-            statuses.append(step.status['deleted'])
+                system_user_id = get_project_user(project.id)['id']
+            except (RuntimeError, KeyError, NoResultFound):
+                system_user_id = None
 
-        return {'steps': statuses}, 200
+            context = {
+                'project': project,
+                'vault_client': VaultClient.from_project(project),
+                'system_user_id': system_user_id,
+                'session': session
+            }
+
+            statuses: List[dict] = []
+            for step in get_steps(self.module, reverse=True):
+                try:
+                    step.delete(**context)
+                    session.commit()
+                except Exception as e:
+                    # log.warning('%s error %s', repr(step), e)
+                    log.exception('step exc')
+                statuses.append(step.status['deleted'])
+
+            return {'steps': statuses}, 200
 
 
 class API(api_tools.APIBase):  # pylint: disable=R0903

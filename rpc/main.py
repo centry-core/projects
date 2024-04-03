@@ -6,7 +6,7 @@ from ..models.project import Project
 from ..models.quota import ProjectQuota
 from ..models.statistics import Statistic
 
-from tools import rpc_tools
+from tools import rpc_tools, db
 from pylon.core.tools import web, log
 
 from ..tools.session_project import SessionProject
@@ -53,9 +53,10 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_id(self) -> Optional[int]:
         project_id = SessionProject.get()
-        project = Project.query.get(project_id)
-        if project:
-            return project.id
+        with db.with_project_schema_session(None) as session:
+            project = session.query(Project).where(Project.id == project_id).first()
+            if project:
+                return project.id
         SessionProject.pop()
         return None
         # if not project_id:
