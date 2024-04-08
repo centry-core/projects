@@ -38,8 +38,7 @@ def delete_project(project_id: int, module) -> List[dict]:
                 step.delete(**context)
                 session.commit()
             except Exception as e:
-                # log.warning('%s error %s', repr(step), e)
-                log.exception('step exc')
+                log.warning('step exc %s %s', repr(step), e)
             statuses.append(step.status['deleted'])
         return statuses
 
