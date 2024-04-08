@@ -45,10 +45,6 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     storage_soft_limit = Column(Integer, unique=False, nullable=True)
     storage_limit_total_block = Column(Boolean, unique=False, nullable=False, default=False)
 
-    def update_retention_limit(self, data_retention_limit):
-        self.data_retention_limit = data_retention_limit
-        self.commit()
-
     def update_vcu_limits(self, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block=False):
         self.vcu_hard_limit = vcu_hard_limit
         self.vcu_soft_limit = vcu_soft_limit
@@ -97,42 +93,6 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
         if quota:
             return ProjectQuota.check_quota(project_id, quota)
         return ProjectQuota.query.filter(ProjectQuota.project_id == project_id).first().to_json()
-
-    @staticmethod
-    def _update_quota(project_id, data_retention_limit, test_duration_limit, cpu_limit, memory_limit, vcu_hard_limit,
-                      vcu_soft_limit, vcu_limit_total_block, storage_hard_limit, storage_soft_limit,
-                      storage_limit_total_block):
-        quota = ProjectQuota.query.filter_by(project_id=project_id).first()
-        if quota:
-            quota.data_retention_limit = data_retention_limit
-            quota.test_duration_limit = test_duration_limit
-            quota.cpu_limit = cpu_limit
-            quota.memory_limit = memory_limit
-            quota.vcu_hard_limit = vcu_hard_limit
-            quota.vcu_soft_limit = vcu_soft_limit
-            quota.vcu_limit_total_block = vcu_limit_total_block
-            quota.storage_hard_limit = storage_hard_limit
-            quota.storage_soft_limit = storage_soft_limit
-            quota.storage_limit_total_block = storage_limit_total_block
-            quota.commit()
-        else:
-            quota = ProjectQuota(project_id=project_id, data_retention_limit=data_retention_limit,
-                                 test_duration_limit=test_duration_limit, cpu_limit=cpu_limit, memory_limit=memory_limit,
-                vcu_hard_limit=vcu_hard_limit, vcu_soft_limit=vcu_soft_limit, 
-                vcu_limit_total_block=vcu_limit_total_block, storage_hard_limit=storage_hard_limit, 
-                storage_soft_limit=storage_soft_limit, storage_limit_total_block=storage_limit_total_block)
-            quota.insert()
-        return quota
-
-    @staticmethod
-    def create(project_id, data_retention_limit, test_duration_limit, cpu_limit, memory_limit, vcu_hard_limit, vcu_soft_limit, vcu_limit_total_block,
-            storage_hard_limit, storage_soft_limit, storage_limit_total_block):
-        return ProjectQuota._update_quota(project_id=project_id,
-            data_retention_limit=data_retention_limit, test_duration_limit=test_duration_limit, cpu_limit=cpu_limit,
-                                          memory_limit=memory_limit, vcu_hard_limit=vcu_hard_limit,
-            vcu_soft_limit=vcu_soft_limit, vcu_limit_total_block=vcu_limit_total_block,
-            storage_hard_limit=storage_hard_limit, storage_soft_limit=storage_soft_limit,
-            storage_limit_total_block=storage_limit_total_block)
 
     @property
     def storage_hard_limit_in_bytes(self) -> Optional[int]:

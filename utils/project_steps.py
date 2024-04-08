@@ -34,7 +34,7 @@ class ProjectModel(ProjectCreationStep):
         session.add(project)
         session.commit()
         log.info('after project.insert')
-        ProjectQuota.create(
+        quota = ProjectQuota(
             project_id=project.id,
             data_retention_limit=project_model.data_retention_limit,
             test_duration_limit=project_model.test_duration_limit,
@@ -45,8 +45,10 @@ class ProjectModel(ProjectCreationStep):
             vcu_limit_total_block=project_model.vcu_limit_total_block,
             storage_hard_limit=project_model.storage_hard_limit,
             storage_soft_limit=project_model.storage_soft_limit,
-            storage_limit_total_block=project_model.storage_limit_total_block,
+            storage_limit_total_block=project_model.storage_limit_total_block
         )
+        session.add(quota)
+        session.commit()
         log.info('after quota created')
 
         statistic = Statistic(
