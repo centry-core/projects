@@ -99,9 +99,12 @@ class ProjectSchema(ProjectCreationStep):
             tenant_db.commit()
 
     def delete(self, project: Project, **kwargs) -> None:
-        with db.with_project_schema_session(project.id) as tenant_db:
-            tenant_db.execute(schema.DropSchema(PROJECT_SCHEMA_TEMPLATE.format(project.id), cascade=True))
-            tenant_db.commit()
+        try:
+            with db.with_project_schema_session(project.id) as tenant_db:
+                tenant_db.execute(schema.DropSchema(PROJECT_SCHEMA_TEMPLATE.format(project.id), cascade=True))
+                tenant_db.commit()
+        except Exception as e:
+            log.warning(f'Drop schema exception {e}')
 
 
 class ProjectPermissions(ProjectCreationStep):
