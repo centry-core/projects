@@ -15,6 +15,35 @@ from ...utils import get_project_user
 from ...utils.project_steps import create_project, get_steps, ProjectCreateError
 
 
+def delete_project(project_id: int, module) -> List[dict]:
+    with db.with_project_schema_session(None) as session:
+        project = session.query(Project).where(Project.id == project_id).first()
+        if not project:
+            return None, 404
+        try:
+            system_user_id = get_project_user(project.id)['id']
+        except (RuntimeError, KeyError, NoResultFound):
+            system_user_id = None
+
+        context = {
+            'project': project,
+            'vault_client': VaultClient.from_project(project),
+            'system_user_id': system_user_id,
+            'session': session
+        }
+
+        statuses: List[dict] = []
+        for step in get_steps(module, reverse=True):
+            try:
+                step.delete(**context)
+                session.commit()
+            except Exception as e:
+                # log.warning('%s error %s', repr(step), e)
+                log.exception('step exc')
+            statuses.append(step.status['deleted'])
+        return statuses
+
+
 class ProjectAPI(api_tools.APIModeHandler):
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.view"],
@@ -146,33 +175,8 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int):
-        with db.with_project_schema_session(None) as session:
-            project = session.query(Project).where(Project.id == project_id).first()
-            if not project:
-                return None, 404
-            try:
-                system_user_id = get_project_user(project.id)['id']
-            except (RuntimeError, KeyError, NoResultFound):
-                system_user_id = None
-
-            context = {
-                'project': project,
-                'vault_client': VaultClient.from_project(project),
-                'system_user_id': system_user_id,
-                'session': session
-            }
-
-            statuses: List[dict] = []
-            for step in get_steps(self.module, reverse=True):
-                try:
-                    step.delete(**context)
-                    session.commit()
-                except Exception as e:
-                    # log.warning('%s error %s', repr(step), e)
-                    log.exception('step exc')
-                statuses.append(step.status['deleted'])
-
-            return {'steps': statuses}, 200
+        statuses = delete_project(project_id=project_id, module=self.module)
+        return {'steps': statuses}, 200
 
 
 class API(api_tools.APIBase):  # pylint: disable=R0903

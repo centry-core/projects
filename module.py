@@ -89,10 +89,18 @@ class Module(module.ModuleModel):
 
 
     def create_scheduling(self):
-        schedule_data = {
+        schedule1_data = {
             'name': 'projects_create_personal_project',
             'cron': '*/5 * * * *',
             'rpc_func': 'projects_create_personal_project',
             'active': False
         }
-        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule_data)
+        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule1_data)
+
+        schedule2_data = {
+            'name': 'projects_fix_create_personal_projects',
+            'cron': '0 */3 * * *',
+            'rpc_func': 'projects_fix_create_personal_projects',
+            'active': False
+        }
+        self.context.rpc_manager.timeout(5).scheduling_create_if_not_exists(schedule2_data)

@@ -29,11 +29,11 @@ class ProjectQuota(db_tools.AbstractBaseMixin, db.Base):
     # vuh_limit = Column(Integer, unique=False, nullable=False)
     # storage_space = Column(Integer, unique=False)
     data_retention_limit = Column(Integer, unique=False)
-    # ALTER TABLE project_quota ADD COLUMN test_duration_limit INTEGER;
+    # ALTER TABLE project_quota ADD COLUMN test_duration_limit INTEGER default -1;
     test_duration_limit = Column(Integer, unique=False, default=-1)
-    # ALTER TABLE project_quota ADD COLUMN cpu_limit INTEGER;
+    # ALTER TABLE project_quota ADD COLUMN cpu_limit INTEGER default -1;
     cpu_limit = Column(Integer, unique=False, default=-1)
-    # ALTER TABLE project_quota ADD COLUMN memory_limit INTEGER;
+    # ALTER TABLE project_quota ADD COLUMN memory_limit INTEGER default -1;
     memory_limit = Column(Integer, unique=False, default=-1)
     last_update_time = Column(DateTime, server_default=data_tools.utcnow())
     dast_scans = Column(Integer, unique=False, default=-1)

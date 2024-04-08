@@ -160,9 +160,10 @@ class SystemToken(ProjectCreationStep):
         #
         return {'system_token': auth.encode_token(token_id)}
 
-    def delete(self, system_user_id: int, **kwargs) -> None:
-        for i in auth.list_tokens(system_user_id):
-            auth.delete_token(i['id'])
+    def delete(self, system_user_id: Optional[int] = None, **kwargs) -> None:
+        if system_user_id:
+            for i in auth.list_tokens(user_id=system_user_id):
+                auth.delete_token(token_id=i['id'])
 
 
 class ProjectSecrets(ProjectCreationStep):

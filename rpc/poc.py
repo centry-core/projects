@@ -1,15 +1,15 @@
 from collections import defaultdict
 import re
 from traceback import format_exc
-from typing import Optional
 
 from tools import auth
 from tools import rpc_tools
-from tools import config as c
+from tools import db
 from tools import context
 from pylon.core.tools import web
 from pylon.core.tools import log
 
+from ..api.v1.project import delete_project
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
 from ..utils.project_steps import create_project
@@ -52,6 +52,39 @@ def create_keycloak_user(user_email: str, *, rpc_manager, default_password: str 
     )
     log.info('after keycloak')
 
+
+def create_personal_project(user_id: int,
+                            module,
+                            plugins: list = ('configuration', 'models'),
+                            roles: list = ('editor', 'viewer')
+                            ):
+    project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
+    with db.with_project_schema_session(None) as session:
+        p = session.query(Project).where(Project.name == project_name).first()
+    if not p:
+        project_model = ProjectCreatePD(
+            name=project_name,
+            project_admin_email=module.context.rpc_manager.call.auth_get_user(user_id)['email'],
+            plugins=list(plugins)
+        )
+
+        context = {
+            'project_model': project_model,
+            'owner_id': user_id,
+            'roles': list(roles)
+        }
+
+        try:
+            create_project(module, context)
+            log.info(f'Personal project {project_name} created')
+        except Exception:
+            log.critical(format_exc())
+
+
+def is_system_user(email: str) -> bool:
+    system_user_email = PROJECT_USER_EMAIL_TEMPLATE.format(r'(\d+)')
+    match = re.match(rf"^{system_user_email}$", email)
+    return bool(match)
 
 
 class RPC:
@@ -125,7 +158,7 @@ class RPC:
 
     @web.rpc("projects_create_personal_project", "create_personal_project")
     @rpc_tools.wrap_exceptions(RuntimeError)
-    def create_personal_project(self) -> None:
+    def create_personal_project_from_visitors(self) -> None:
         for user_data in self.visitors.values():
             if not isinstance(user_data.get('id', ''), int):
                 continue
@@ -134,31 +167,26 @@ class RPC:
             if user_data.get('type', '') == 'token':
                 user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
 
-            project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
-            projects = Project.list_projects()
-            if any(project['name'] == project_name for project in projects):
-                continue
-
-            project_model = ProjectCreatePD(
-                name=project_name,
-                project_admin_email=self.context.rpc_manager.call.auth_get_user(user_id)['email'],
-                plugins=['configuration', 'models']
-            )
-
-            context = {
-                'project_model': project_model,
-                'owner_id': user_id,
-                'roles': ['editor', 'viewer']
-            }
-
-            try:
-                create_project(self, context)
-                log.info(f'Personal project {project_name} created')
-
-            except Exception:
-                log.critical(format_exc())
-
+            create_personal_project(user_id=user_id, module=self)
         self.visitors = defaultdict(dict)
+
+    @web.rpc("projects_fix_create_personal_projects", "fix_create_personal_projects")
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def fix_create_personal_projects(self) -> None:
+        for user in auth.list_users():
+            log.info(f'{user=}')
+            log.info(f'{is_system_user(user["email"])=}')
+            if not is_system_user(user["email"]):
+                project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user['id'])
+                with db.with_project_schema_session(None) as session:
+                    project = session.query(Project).where(Project.name == project_name).first()
+                    if not project:
+                        create_personal_project(user_id=user['id'], module=self)
+                    elif not project.create_success:
+                        delete_project(project_id=project.id, module=self)
+                        create_personal_project(user_id=user['id'], module=self)
+                    else:
+                        ...
 
     @web.rpc("projects_get_personal_project_id", "get_personal_project_id")
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -166,17 +194,18 @@ class RPC:
         if not user_id:
             return
         project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
-        project = Project.query.filter(Project.name == project_name).first()
+        with db.with_project_schema_session(None) as session:
+            project = session.query(Project).where(Project.name == project_name).first()
 
-        if project and self.context.rpc_manager.call.admin_check_user_in_project(project.id, user_id):
-            return project.id
+            if project and self.context.rpc_manager.call.admin_check_user_in_project(project.id, user_id):
+                return project.id
 
-        if not project:
-            if user:= auth.get_user(user_id=user_id):
-                system_user_email = PROJECT_USER_EMAIL_TEMPLATE.format(r'(\d+)')
-                match = re.match(rf"^{system_user_email}$", user['email'])
-                if match:
-                    return int(match.groups()[0])
+            if not project:
+                if user := auth.get_user(user_id=user_id):
+                    system_user_email = PROJECT_USER_EMAIL_TEMPLATE.format(r'(\d+)')
+                    match = re.match(rf"^{system_user_email}$", user['email'])
+                    if match:
+                        return int(match.groups()[0])
 
     @web.rpc("projects_get_personal_project_ids", "get_personal_project_ids")
     @rpc_tools.wrap_exceptions(RuntimeError)
@@ -185,7 +214,6 @@ class RPC:
         projects = Project.query.with_entities(Project.id).filter(
             Project.name.like(projects_name)).all()
         return [project_data[0] for project_data in projects]
-
 
     @web.rpc()
     @rpc_tools.wrap_exceptions(RuntimeError)
