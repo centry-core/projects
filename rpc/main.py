@@ -19,6 +19,14 @@ class RPC:
     def prj_or_404(self, project_id):
         return Project.query.get_or_404(project_id)
 
+    @web.rpc('project_get_by_id')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def project_get_by_id(self, project_id: int) -> dict | None:
+        with db.get_session() as session:
+            p = session.query(Project).where(Project.id == project_id).first()
+            if p:
+                return p.to_json()
+
     @web.rpc('project_list', 'list')
     @rpc_tools.wrap_exceptions(RuntimeError)
     def list_projects(self, **kwargs):
