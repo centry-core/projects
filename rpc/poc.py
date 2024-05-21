@@ -165,7 +165,11 @@ class RPC:
 
             user_id = user_data['id']
             if user_data.get('type', '') == 'token':
-                user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
+                try:
+                    user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
+                except:
+                    log.exception("Failed to get user_id from token. Skipping")
+                    continue
 
             create_personal_project(user_id=user_id, module=self)
         self.visitors = defaultdict(dict)
