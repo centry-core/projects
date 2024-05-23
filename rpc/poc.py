@@ -92,11 +92,20 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def list_user_projects(self, user_id: int, **kwargs) -> list:
         all_projects = self.list(**kwargs)
-        # log.info(f"projects {user_id=} {all_projects=}")
-        user_projects = list()
+        #
+        user_projects = []
+        check_ids = []
+        project_map = {}
+        #
         for project in all_projects:
-            if self.context.rpc_manager.call.admin_check_user_in_project(project["id"], user_id):
-                user_projects.append(project)
+            check_ids.append(project["id"])
+            project_map[project["id"]] = project
+        #
+        user_in_ids = self.context.rpc_manager.call.admin_check_user_in_projects(check_ids, user_id)
+        #
+        for project_id in user_in_ids:
+            user_projects.append(project_map[project_id])
+        #
         return user_projects
 
     @web.rpc("add_user_to_project_or_create", "add_user_to_project_or_create")
