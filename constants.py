@@ -4,7 +4,8 @@ INFLUX_DATABASES = {
     'comparison_db': 'comparison_{}',
     'telegraf_db': 'telegraf_{}'
 }
-PROJECT_USER_NAME_TEMPLATE = ':system:project:{}:'
+PROJECT_USER_NAME_PREFIX = ':system:project:'
+PROJECT_USER_NAME_TEMPLATE = '{}{{}}:'.format(PROJECT_USER_NAME_PREFIX)
 PROJECT_USER_EMAIL_TEMPLATE = 'system_user_{}@centry.user'
 PROJECT_SCHEMA_TEMPLATE = 'p_{}'
 PROJECT_RABBIT_USER_TEMPLATE = 'rabbit_user_{}'
