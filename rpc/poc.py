@@ -13,7 +13,11 @@ from ..api.v1.project import delete_project
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
 from ..utils.project_steps import create_project
-from ..constants import PROJECT_PERSONAL_NAME_TEMPLATE, PROJECT_USER_EMAIL_TEMPLATE
+from ..constants import (
+    PROJECT_PERSONAL_NAME_TEMPLATE,
+    PROJECT_USER_EMAIL_TEMPLATE,
+    PROJECT_USER_NAME_PREFIX
+)
 
 
 def create_keycloak_user(user_email: str, *, rpc_manager, default_password: str = "11111111") -> None:
@@ -176,8 +180,12 @@ class RPC:
             if user_data.get('type', '') == 'token':
                 try:
                     user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
+                    user_name = self.context.rpc_manager.call.auth_get_user(user_id)['name']
+                    if user_name.startswith(PROJECT_USER_NAME_PREFIX):
+                        log.warning(f"Skipping to create personal project for {user_name}")
+                        continue
                 except:
-                    log.exception("Failed to get user_id from token. Skipping")
+                    log.exception("Failed to get user from token. Skipping")
                     continue
 
             create_personal_project(user_id=user_id, module=self)
