@@ -195,8 +195,8 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def fix_create_personal_projects(self) -> None:
         for user in auth.list_users():
-            log.info(f'{user=}')
-            log.info(f'{is_system_user(user["email"])=}')
+            # log.info(f'{user=}')
+            # log.info(f'{is_system_user(user["email"])=}')
             if not is_system_user(user["email"]):
                 project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user['id'])
                 with db.with_project_schema_session(None) as session:
