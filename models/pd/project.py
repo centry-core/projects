@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr, constr
+from .project_group import ProjectGroupListModel
 
 
 class ProjectCreatePD(BaseModel):
@@ -20,3 +21,16 @@ class ProjectCreatePD(BaseModel):
     storage_soft_limit: int = 9
     storage_limit_total_block: bool = False
     invitation_integration: Optional[str] = None  # task_id
+
+
+class ProjectListModel(BaseModel):
+    id: int
+    name: str
+    owner_id: int
+    plugins: Optional[List[str]]
+    keycloak_groups: Optional[dict]
+    create_success: Optional[bool]
+    groups: List[ProjectGroupListModel]
+
+    class Config:
+        orm_mode = True
