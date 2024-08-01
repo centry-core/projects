@@ -30,6 +30,13 @@ class ProjectGroup(db.Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(256), nullable=False, unique=True)
 
+    projects: Mapped[List['Project']] = relationship(
+        secondary=lambda: ProjectGroupAssociation,
+        backref='group',
+        # back_populates='project',
+        lazy='dynamic'
+    )
+
 
 ProjectGroupAssociation = Table(
     'project_group_association',
@@ -56,7 +63,9 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     create_success = Column(Boolean, nullable=False, default=False)
     groups: Mapped[List[ProjectGroup]] = relationship(
         secondary=lambda: ProjectGroupAssociation,
-        backref='project', lazy='joined'
+        backref='project',
+        # back_populates='project',
+        lazy='joined'
     )
 
     def get_data_retention_limit(self) -> Optional[int]:
@@ -85,7 +94,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         with db.with_project_schema_session(None) as session:
             if project_id:
                 stmt = select(Project).where(Project.id == project_id)
-                p = session.scalars(stmt.options(joinedload(Project.groups))).unique().first()
+                p = session.scalars(stmt).unique().first()
                 if not p:
                     return
 
