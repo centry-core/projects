@@ -11,12 +11,31 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-from typing import Optional
-from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, and_, Boolean
+from typing import Optional, List
+
+from ..models.pd.project import ProjectListModel
+from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy import select
 
-from tools import rpc_tools, db, db_tools, MinioClient
+from tools import rpc_tools, db, db_tools, MinioClient, config as c
+
+from sqlalchemy.orm import Mapped, relationship, joinedload
+
+
+class ProjectGroup(db.Base):
+    __tablename__ = "project_group"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(256), nullable=False, unique=True)
+
+
+ProjectGroupAssociation = Table(
+    'project_group_association',
+    db.Base.metadata,
+    Column('project_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.project.id')),
+    Column('group_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.{ProjectGroup.__tablename__}.id'))
+)
 
 
 class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
@@ -35,6 +54,10 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         nullable=False, default={},
     )
     create_success = Column(Boolean, nullable=False, default=False)
+    groups: Mapped[List[ProjectGroup]] = relationship(
+        secondary=lambda: ProjectGroupAssociation,
+        backref='project', lazy='joined'
+    )
 
     def get_data_retention_limit(self) -> Optional[int]:
         from .quota import ProjectQuota
@@ -62,14 +85,17 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         with db.with_project_schema_session(None) as session:
             if project_id:
                 stmt = select(Project).where(Project.id == project_id)
-                p = session.scalars(stmt).first()
+                p = session.scalars(stmt.options(joinedload(Project.groups))).unique().first()
                 if not p:
                     return
+
+                # return ProjectListModel.from_orm(p).dict()
                 return p.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
             elif search_:
                 stmt = select(Project).where(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
             else:
                 stmt = select(Project).where(*flt).limit(limit_).offset(offset_)
 
-            projects = session.scalars(stmt).all()
+            projects = session.scalars(stmt.options(joinedload(Project.groups))).unique().all()
+            # return [ProjectListModel.from_orm(project).dict() for project in projects]
             return [project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS) for project in projects]
