@@ -30,7 +30,7 @@ class ProjectListModel(BaseModel):
     plugins: Optional[List[str]]
     keycloak_groups: Optional[dict]
     create_success: Optional[bool]
-    # groups: List[ProjectGroupListModel]
+    groups: List[ProjectGroupListModel]
 
     class Config:
         orm_mode = True

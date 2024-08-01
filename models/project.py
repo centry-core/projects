@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, relationship, joinedload
 
 class ProjectGroup(db.Base):
     __tablename__ = "project_group"
+    __table_args__ = {"schema": c.POSTGRES_SCHEMA}
 
     id = Column(Integer, primary_key=True)
     name = Column(String(256), nullable=False, unique=True)
@@ -34,14 +35,13 @@ ProjectGroupAssociation = Table(
     'project_group_association',
     db.Base.metadata,
     Column('project_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.project.id')),
-    Column('group_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.{ProjectGroup.__tablename__}.id'))
+    Column('group_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.{ProjectGroup.__tablename__}.id')),
+    schema=c.POSTGRES_SCHEMA
 )
 
 
 class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     __tablename__ = "project"
-
-    API_EXCLUDE_FIELDS = ("secrets_json",)
 
     id = Column(Integer, primary_key=True)
     name = Column(String(256), nullable=False)
@@ -89,13 +89,11 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
                 if not p:
                     return
 
-                # return ProjectListModel.from_orm(p).dict()
-                return p.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
+                return ProjectListModel.from_orm(p).dict()
             elif search_:
                 stmt = select(Project).where(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
             else:
                 stmt = select(Project).where(*flt).limit(limit_).offset(offset_)
 
             projects = session.scalars(stmt.options(joinedload(Project.groups))).unique().all()
-            # return [ProjectListModel.from_orm(project).dict() for project in projects]
-            return [project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS) for project in projects]
+            return [ProjectListModel.from_orm(project).dict() for project in projects]

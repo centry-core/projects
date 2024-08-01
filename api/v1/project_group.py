@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from tools import auth, db, api_tools, serialize
 
+from ...models.pd.project import ProjectListModel
 from ...models.pd.project_group import ProjectGroupModel
 from ...models.project import ProjectGroup, Project
 
@@ -40,8 +41,7 @@ class PromptLibAPI(api_tools.APIModeHandler):
                 project.groups.append(group)
 
             session.commit()
-            project_with_group = project.to_json(exclude_fields=Project.API_EXCLUDE_FIELDS)
-            serialized = serialize(project_with_group)
+            serialized = serialize(ProjectListModel.from_orm(project))
         return serialized, 201
 
     @auth.decorators.check_api({
