@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr, constr
-from .project_group import ProjectGroupListModel
+from .group import GroupListModel
 
 
 class ProjectCreatePD(BaseModel):
@@ -30,7 +30,8 @@ class ProjectListModel(BaseModel):
     plugins: Optional[List[str]]
     keycloak_groups: Optional[dict]
     create_success: Optional[bool]
-    groups: List[ProjectGroupListModel]
+    groups: List[GroupListModel]
 
     class Config:
         orm_mode = True
+

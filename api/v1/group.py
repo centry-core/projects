@@ -3,14 +3,27 @@ from pydantic import ValidationError
 
 from tools import auth, db, api_tools, serialize
 
+from ...models.pd.group import GroupCreateModel
 from ...models.pd.project import ProjectListModel
-from ...models.pd.project_group import ProjectGroupModel
 from ...models.project import ProjectGroup, Project
 
 
 class PromptLibAPI(api_tools.APIModeHandler):
+    ...
+
+
+class API(api_tools.APIBase):  # pylint: disable=R0903
+    url_params = api_tools.with_modes([
+        "<int:project_id>",
+        "<int:project_id>/<int:group_id>",
+    ])
+
+    mode_handlers = {
+        "prompt_lib": PromptLibAPI
+    }
+
     @auth.decorators.check_api({
-        "permissions": ["projects.projects.project_group.create"],
+        "permissions": ["projects.projects.group.create"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": True},
             "default": {"admin": True, "viewer": False, "editor": True},
@@ -21,7 +34,7 @@ class PromptLibAPI(api_tools.APIModeHandler):
         raw['project_id'] = project_id
 
         try:
-            parsed = ProjectGroupModel.parse_obj(raw)
+            parsed = GroupCreateModel.parse_obj(raw)
         except ValidationError:
             return {"error": "Can not validate data"}, 400
 
@@ -45,7 +58,7 @@ class PromptLibAPI(api_tools.APIModeHandler):
         return serialized, 201
 
     @auth.decorators.check_api({
-        "permissions": ["projects.projects.project_group.delete"],
+        "permissions": ["projects.projects.group.delete"],
         "recommended_roles": {
             "administration": {"admin": True, "viewer": False, "editor": True},
             "default": {"admin": True, "viewer": False, "editor": True},
@@ -65,14 +78,3 @@ class PromptLibAPI(api_tools.APIModeHandler):
             else:
                 return {"error": "Project or Group not found"}, 400
         return {}, 204
-
-
-class API(api_tools.APIBase):  # pylint: disable=R0903
-    url_params = api_tools.with_modes([
-        "<int:project_id>",
-        "<int:project_id>/<int:group_id>",
-    ])
-
-    mode_handlers = {
-        "prompt_lib": PromptLibAPI
-    }
