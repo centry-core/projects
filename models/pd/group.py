@@ -1,12 +1,14 @@
+from typing import List
+
 from pydantic import BaseModel
 
 
-class ProjectGroupModel(BaseModel):
-    name: str
+class GroupModifyModel(BaseModel):
+    groups: List[str]
     project_id: int
 
 
-class ProjectGroupListModel(BaseModel):
+class GroupListModel(BaseModel):
     id: int
     name: str
 

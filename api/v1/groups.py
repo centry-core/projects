@@ -1,7 +1,7 @@
 from flask import request
 from tools import auth, db, api_tools, serialize
 
-from ...models.pd.project_group import ProjectGroupListModel
+from ...models.pd.group import GroupListModel
 from ...models.project import ProjectGroup
 
 
@@ -19,7 +19,7 @@ class PromptLibAPI(api_tools.APIModeHandler):
                 query = query.filter(*filters)
 
             project_with_group = [
-                serialize(ProjectGroupListModel.from_orm(group)) for group in query
+                serialize(GroupListModel.from_orm(group)) for group in query
             ]
         return project_with_group, 201
 

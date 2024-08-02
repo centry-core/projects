@@ -33,7 +33,6 @@ class ProjectGroup(db.Base):
     projects: Mapped[List['Project']] = relationship(
         secondary=lambda: ProjectGroupAssociation,
         backref='group',
-        # back_populates='project',
         lazy='dynamic'
     )
 
