@@ -34,7 +34,7 @@ class ProjectGroup(db.Base):
         secondary=lambda: ProjectGroupAssociation,
         backref='group',
         # back_populates='group',
-        lazy=True
+        lazy='dynamic'
     )
 
 
