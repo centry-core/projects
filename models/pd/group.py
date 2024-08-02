@@ -14,3 +14,8 @@ class GroupListModel(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class GroupCreateModel(BaseModel):
+    name: str
+    project_id: int
