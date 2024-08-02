@@ -12,7 +12,7 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def get_available_projects_in_group(self, user_id: int, group_id: int) -> List[dict]:
         with db.get_session() as session:
-            user_projects = self.module.list_user_projects(user_id)
+            user_projects = self.list_user_projects(user_id)
             user_projects_ids = [i['id'] for i in user_projects]
             projects = session.query(Project).filter(
                 Project.id.in_(user_projects_ids)
