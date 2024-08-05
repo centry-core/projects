@@ -1,9 +1,7 @@
 from tools import auth, db, api_tools, serialize
 
 from ...models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
-from ...models.project import ProjectGroup, Project, ProjectGroupAssociation
-
-from pylon.core.tools import log
+from ...models.project import ProjectGroup, Project
 
 
 class PromptLibAPI(api_tools.APIModeHandler):
