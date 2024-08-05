@@ -1,7 +1,9 @@
 from tools import auth, db, api_tools, serialize
 
 from ...models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
-from ...models.project import ProjectGroup, Project
+from ...models.project import ProjectGroup, Project, ProjectGroupAssociation
+
+from pylon.core.tools import log
 
 
 class PromptLibAPI(api_tools.APIModeHandler):
@@ -32,7 +34,8 @@ class API(api_tools.APIBase):
                 'groups': [
                     dict(
                         GroupMonitoringListModel.from_orm(g).dict(),
-                        projects=[ProjectMonitoringListModel.from_orm(p).dict() for p in g.projects.all()]
+                        projects=[ProjectMonitoringListModel.from_orm(p).dict() for p in g.projects.all()
+                                  if p.id in user_projects_ids]
                     ) for g in groups
                 ]
             }), 200
