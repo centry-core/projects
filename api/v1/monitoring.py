@@ -20,7 +20,7 @@ class API(api_tools.APIBase):
     def get(self, **kwargs) -> tuple[dict, int]:
         user_id = auth.current_user().get('id')
         user_projects = self.module.list_user_projects(user_id)
-        user_projects_ids = list(set(i['id'] for i in user_projects))
+        user_projects_ids = set(i['id'] for i in user_projects)
 
         with db.get_session() as session:
             groups = session.query(ProjectGroup).join(
