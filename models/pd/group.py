@@ -1,6 +1,6 @@
 from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 
 class GroupModifyModel(BaseModel):
@@ -19,3 +19,9 @@ class GroupListModel(BaseModel):
 class GroupCreateModel(BaseModel):
     name: str
     project_id: int
+
+    @validator('name')
+    def check_no_group_name(cls, name: str):
+        assert name != 'no_group', 'Group with name "no_group" can not be created'
+        return name
+
