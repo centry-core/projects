@@ -1,4 +1,4 @@
-from tools import auth, db, api_tools, serialize
+from tools import auth, db, api_tools, serialize, config as c
 
 from ...models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
 from ...models.project import ProjectGroup, Project
@@ -49,7 +49,8 @@ class API(api_tools.APIBase):
             not_grouped_projects = session.query(Project).filter(Project.id.in_(not_grouped_projects_ids)).all()
 
             no_group = dict(
-                name='no_group',
+                name=c.NO_GROUP_NAME,
+                id=c.NO_GROUP_NAME,
                 projects=[ProjectMonitoringListModel.from_orm(p).dict() for p in not_grouped_projects]
             )
             groups.append(no_group)
