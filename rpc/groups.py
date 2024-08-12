@@ -1,14 +1,12 @@
 from typing import List, Literal
 
-from sqlalchemy import func
+from sqlalchemy import not_
 from ..models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
 from ..models.pd.project import ProjectListModel
 from ..models.project import Project, ProjectGroup
 
 from tools import rpc_tools, db, serialize, config as c
 from pylon.core.tools import web, log
-
-
 
 
 class RPC:
@@ -19,13 +17,10 @@ class RPC:
             user_projects = self.list_user_projects(user_id)
             user_projects_ids = [i['id'] for i in user_projects]
             if group_id == c.NO_GROUP_NAME:
-                # projects = session.query(Project).filter(
-                #     Project.id.in_(user_projects_ids)
-                # ).having(func.count(Project.groups) == 0).all()
                 projects = session.query(Project).filter(
                     Project.id.in_(user_projects_ids),
+                    not_(Project.groups.any())
                 ).all()
-                projects = [i for i in projects if len(i.groups) == 0]
             else:
                 projects = session.query(Project).filter(
                     Project.id.in_(user_projects_ids),
