@@ -3,6 +3,7 @@ from typing import Optional, Tuple, List
 from flask import request, g
 from pylon.core.tools import log
 
+import cachetools
 from pydantic import ValidationError
 
 from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools
@@ -43,6 +44,36 @@ def delete_project(project_id: int, module) -> List[dict]:
         return statuses
 
 
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=1024, ttl=300))
+def do_project_list(user_id, offset_, limit_, search_, check_public_role, module):
+    projects = module.list_user_projects(
+        user_id, offset_=offset_, limit_=limit_, search_=search_
+    )
+
+    if check_public_role:
+        vault_client = VaultClient()
+        secrets = vault_client.get_all_secrets()
+        try:
+            public_project_id = int(secrets['ai_project_id'])
+            public_admin_role = secrets['ai_public_admin_role']
+
+            def check_public_project_allowed(project) -> bool:
+                if project['id'] == public_project_id:
+                    roles = {role['name'] for role in module.context.rpc_manager.timeout(
+                        2
+                    ).admin_get_user_roles(public_project_id, user_id)}
+                    return public_admin_role in roles
+                return True
+
+            projects = list(filter(check_public_project_allowed, projects))
+        except KeyError as e:
+            log.info('public_project_id or public_admin_role secrets are not set')
+        except Empty as e:
+            log.error(e)
+
+    return projects
+
+
 class ProjectAPI(api_tools.APIModeHandler):
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.view"],
@@ -60,30 +91,8 @@ class ProjectAPI(api_tools.APIModeHandler):
         search_ = request.args.get("search")
         #
         check_public_role = request.args.get("check_public_role")
-        projects = self.module.list_user_projects(
-            user_id, offset_=offset_, limit_=limit_, search_=search_
-        )
 
-        if check_public_role:
-            vault_client = VaultClient()
-            secrets = vault_client.get_all_secrets()
-            try:
-                public_project_id = int(secrets['ai_project_id'])
-                public_admin_role = secrets['ai_public_admin_role']
-
-                def check_public_project_allowed(project) -> bool:
-                    if project['id'] == public_project_id:
-                        roles = {role['name'] for role in self.module.context.rpc_manager.timeout(
-                            2
-                        ).admin_get_user_roles(public_project_id, user_id)}
-                        return public_admin_role in roles
-                    return True
-
-                projects = list(filter(check_public_project_allowed, projects))
-            except KeyError as e:
-                log.info('public_project_id or public_admin_role secrets are not set')
-            except Empty as e:
-                log.error(e)
+        projects = do_project_list(user_id, offset_, limit_, search_, check_public_role, self.module)
         return projects, 200
 
 
