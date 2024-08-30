@@ -1,3 +1,4 @@
+cachetools==5.3.1
 influxdb==5.3.1
 redis==4.6.0
 rabbitmq-admin==0.2
