@@ -9,6 +9,7 @@ from tools import context
 from pylon.core.tools import web
 from pylon.core.tools import log
 
+import cachetools
 from ..api.v1.project import delete_project
 from ..models.project import Project
 from ..models.pd.project import ProjectCreatePD
@@ -91,9 +92,13 @@ def is_system_user(email: str) -> bool:
     return bool(match)
 
 
+user_projects_cache = cachetools.LRUCache(maxsize=128)
+
+
 class RPC:
     @web.rpc("list_user_projects", "list_user_projects")
     @rpc_tools.wrap_exceptions(RuntimeError)
+    @cachetools.cached(cache=user_projects_cache)
     def list_user_projects(self, user_id: int, **kwargs) -> list:
         all_projects = self.list(**kwargs)
         #
@@ -111,6 +116,14 @@ class RPC:
             user_projects.append(project_map[project_id])
         #
         return user_projects
+
+    @web.rpc("clear_user_projects_cache", "clear_user_projects_cache")
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def clear_user_projects_cache(self, user_ids):
+        for cached_key in list(user_projects_cache.keys()):
+            cached_func, cached_user_id = cached_key
+            if cached_user_id in user_ids:
+                user_projects_cache.pop(cached_key)
 
     @web.rpc("add_user_to_project_or_create", "add_user_to_project_or_create")
     @rpc_tools.wrap_exceptions(RuntimeError)
