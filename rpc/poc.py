@@ -116,7 +116,6 @@ class RPC:
         for project_id in user_in_ids:
             user_projects.append(project_map[project_id])
         #
-        time.sleep(3)
         return user_projects
 
     @web.rpc("clear_user_projects_cache", "clear_user_projects_cache")
