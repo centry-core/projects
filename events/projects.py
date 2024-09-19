@@ -9,8 +9,21 @@ class Event:
 
     @web.event(f"delete_project")
     def delete_project(self, context, event, payload):
-        project_id = payload.get('project_id')
-        user_ids = self.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
+        project_id, user_ids = payload.get('project_id'), payload.get('user_ids')
+        self.clear_user_projects_cache(
+            user_ids
+        )
+
+    @web.event(f"user_added_to_project")
+    def user_added_to_project(self, context, event, payload):
+        project_id, user_ids = payload.get('project_id'), payload.get('user_ids')
+        self.clear_user_projects_cache(
+            user_ids
+        )
+
+    @web.event(f"user_removed_from_project")
+    def user_removed_from_project(self, context, event, payload):
+        project_id, user_ids = payload.get('project_id'), payload.get('user_ids')
         self.clear_user_projects_cache(
             user_ids
         )

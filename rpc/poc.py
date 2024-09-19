@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 import re
 from traceback import format_exc
@@ -115,6 +116,7 @@ class RPC:
         for project_id in user_in_ids:
             user_projects.append(project_map[project_id])
         #
+        time.sleep(3)
         return user_projects
 
     @web.rpc("clear_user_projects_cache", "clear_user_projects_cache")
@@ -159,6 +161,7 @@ class RPC:
             return {
                 'msg': f'user {user["email"]} added to project {project_id}',
                 'status': 'ok',
+                'id': user['id'],
                 'email': user["email"]
             }
         else:
@@ -179,6 +182,7 @@ class RPC:
             return {
                 'msg': f'user {user_email} created and added to project {project_id}',
                 'status': 'ok',
+                'id': user_id,
                 'email': user_email
             }
 

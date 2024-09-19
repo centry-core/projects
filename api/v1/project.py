@@ -183,8 +183,9 @@ class AdminAPI(api_tools.APIModeHandler):
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
     def delete(self, project_id: int):
+        user_ids = self.module.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
         self.module.context.event_manager.fire_event(
-            "delete_project", {'project_id': project_id},
+            "delete_project", {'project_id': project_id, 'user_ids': user_ids},
         )
         statuses = delete_project(project_id=project_id, module=self.module)
         return {'steps': statuses}, 200
