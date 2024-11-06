@@ -38,10 +38,15 @@ class ProjectCreationStep(ABC):
             'msg': '',
             'step': self.name
         }
-
-        self.create = self.check_status('_created')(self.create)
-        self.delete = self.check_status('_deleted')(self.delete)
-
+        #
+        if not hasattr(self, "_real_create"):
+            self._real_create = self.create
+            self.create = self.check_status('_created')(self._real_create)
+        #
+        if not hasattr(self, "_real_delete"):
+            self._real_delete = self.delete
+            self.delete = self.check_status('_deleted')(self._real_delete)
+        #
         log.info('Init step %s', self.name)
 
     @property
