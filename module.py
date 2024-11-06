@@ -14,6 +14,8 @@
 
 """ Module """
 
+import threading
+
 from collections import defaultdict
 from queue import Empty
 
@@ -32,8 +34,9 @@ class Module(module.ModuleModel):
     def __init__(self, context, descriptor):
         self.context = context
         self.descriptor = descriptor
-
+        #
         self.visitors = defaultdict(dict)  # use for creating personal projects for each user
+        self.projects_lock = threading.Event()
 
     def init(self):
         """ Init module """
