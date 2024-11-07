@@ -122,7 +122,7 @@ class RPC:
     @rpc_tools.wrap_exceptions(RuntimeError)
     def clear_user_projects_cache(self, user_ids):
         for cached_key in list(user_projects_cache.keys()):
-            cached_func, cached_user_id = cached_key
+            cached_user_id = cached_key[1]  # cached_func, cached_user_id, ...
             if cached_user_id in user_ids:
                 user_projects_cache.pop(cached_key)
 
