@@ -62,7 +62,7 @@ def create_keycloak_user(user_email: str, *, rpc_manager, default_password: str 
 def create_personal_project(user_id: int,
                             module,
                             plugins: list = ('configuration', 'models'),
-                            roles: list = ('editor', 'viewer')
+                            roles: list = ('editor', 'viewer', 'monitor')
                             ):
     project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
     with db.with_project_schema_session(None) as session:
