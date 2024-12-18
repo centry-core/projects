@@ -182,10 +182,10 @@ class ProjectSecrets(ProjectCreationStep):
         session.commit()
 
         project_secrets = {
-            'backend_performance_results_retention': vault_client.get_all_secrets().get(
-                'backend_performance_results_retention',
-                c.BACKEND_PERFORMANCE_RESULTS_RETENTION
-            )
+            # 'backend_performance_results_retention': vault_client.get_all_secrets().get(
+            #     'backend_performance_results_retention',
+            #     c.BACKEND_PERFORMANCE_RESULTS_RETENTION
+            # )
         }
 
         project_hidden_secrets = {
