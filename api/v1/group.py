@@ -1,5 +1,5 @@
 from flask import request
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 
 from tools import auth, db, api_tools, serialize
 

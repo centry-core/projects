@@ -4,7 +4,7 @@ from flask import request, g
 from pylon.core.tools import log
 
 import cachetools
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 
 from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools
 
