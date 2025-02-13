@@ -3,6 +3,7 @@ from collections import defaultdict
 import re
 from traceback import format_exc
 
+from pydantic.v1 import ValidationError
 from tools import auth
 from tools import rpc_tools
 from tools import db
@@ -68,11 +69,17 @@ def create_personal_project(user_id: int,
     with db.with_project_schema_session(None) as session:
         p = session.query(Project).where(Project.name == project_name).first()
     if not p:
-        project_model = ProjectCreatePD(
-            name=project_name,
-            project_admin_email=module.context.rpc_manager.call.auth_get_user(user_id)['email'],
-            plugins=list(plugins)
-        )
+        project_admin_email = module.context.rpc_manager.call.auth_get_user(user_id)['email']
+        try:
+            project_model = ProjectCreatePD(
+                name=project_name,
+                project_admin_email=project_admin_email,
+                plugins=list(plugins)
+            )
+        except ValidationError as e:
+            log.error(f'Error creating project {project_name=} for {user_id=}: {project_admin_email=}')
+            log.error(format_exc())
+            raise e
 
         context = {
             'project_model': project_model,
