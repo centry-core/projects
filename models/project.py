@@ -41,8 +41,8 @@ class ProjectGroup(db.Base):
 ProjectGroupAssociation = Table(
     'project_group_association',
     db.Base.metadata,
-    Column('project_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.project.id')),
-    Column('group_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.{ProjectGroup.__tablename__}.id')),
+    Column('project_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.project.id', ondelete='CASCADE')),
+    Column('group_id', ForeignKey(f'{c.POSTGRES_SCHEMA}.{ProjectGroup.__tablename__}.id', ondelete='CASCADE')),
     schema=c.POSTGRES_SCHEMA
 )
 

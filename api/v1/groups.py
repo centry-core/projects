@@ -1,7 +1,7 @@
 from flask import request
 from tools import auth, db, api_tools, serialize
 
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 from ...models.pd.group import GroupListModel, GroupModifyModel
 from ...models.pd.project import ProjectListModel
 from ...models.project import ProjectGroup, Project

@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from pydantic import BaseModel, EmailStr, constr
+from pydantic.v1 import BaseModel, EmailStr, constr
 from .group import GroupListModel
 
 
