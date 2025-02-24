@@ -20,7 +20,7 @@ class ProjectCreationStep(ABC):
         try:
             index = ProjectCreationStep.all_steps.index(klass)
             return ProjectCreationStep.all_steps[index]
-        except ValueError:
+        except (ValueError, AttributeError):
             ProjectCreationStep.all_steps.append(klass)
             return klass
 
