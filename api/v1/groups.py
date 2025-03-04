@@ -2,7 +2,7 @@ from flask import request
 from tools import auth, db, api_tools, serialize
 
 from pydantic.v1 import ValidationError
-from ...models.pd.group import GroupListModel, GroupModifyModel
+from ...models.pd.group import GroupModifyModel
 from ...models.pd.project import ProjectListModel
 from ...models.project import ProjectGroup, Project
 
@@ -22,21 +22,9 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
     }
 
     def get(self, **kwargs):
-        filters = list()
         q = request.args.get('query')
-        if q:
-            filters.append(ProjectGroup.name.ilike(f"%{q}%"))
-
-        with (db.get_session() as session):
-            query = session.query(ProjectGroup).all()
-
-            if filters:
-                query = query.filter(*filters)
-
-            project_with_group = [
-                serialize(GroupListModel.from_orm(group)) for group in query
-            ]
-        return project_with_group, 201
+        project_with_group = self.module.get_all_groups(name_filter=q)
+        return project_with_group, 200
 
     # @auth.decorators.check_api({
     #     "permissions": ["projects.projects.groups.edit"],
