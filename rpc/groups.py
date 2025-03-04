@@ -1,6 +1,7 @@
 from typing import List, Literal
 
 from sqlalchemy import not_
+from ..models.pd.group import GroupListModel
 from ..models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
 from ..models.pd.project import ProjectListModel
 from ..models.project import Project, ProjectGroup
@@ -52,3 +53,21 @@ class RPC:
                     ]
                 ) for g in groups
             ]
+
+    @web.rpc('project_get_all_groups', 'get_all_groups')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def get_all_groups(self, name_filter: str = None) -> List[dict]:
+        filters = list()
+        if name_filter:
+            filters.append(ProjectGroup.name.ilike(f"%{name_filter}%"))
+
+        with (db.get_session() as session):
+            query = session.query(ProjectGroup).all()
+
+            if filters:
+                query = query.filter(*filters)
+
+            project_with_group = [
+                serialize(GroupListModel.from_orm(group)) for group in query
+            ]
+        return project_with_group
