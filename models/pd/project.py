@@ -1,12 +1,12 @@
 from typing import Optional, List
 
-from pydantic.v1 import BaseModel, EmailStr, constr
+from pydantic.v1 import BaseModel, constr
 from .group import GroupListModel
 
 
 class ProjectCreatePD(BaseModel):
     name: constr(min_length=1)
-    project_admin_email: EmailStr
+    project_admin_email: str
     plugins: list = []
     data_retention_limit: int = 1_000_000_000
     # storage_space_limit: int = 1_000_000_000
