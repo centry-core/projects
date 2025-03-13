@@ -95,7 +95,7 @@ class ProjectSchema(ProjectCreationStep):
     def create(self, project: Project, **kwargs) -> None:
         with db.with_project_schema_session(project.id) as tenant_db:
             tenant_db.execute(schema.CreateSchema(PROJECT_SCHEMA_TEMPLATE.format(project.id)))
-            db.get_all_metadata().create_all(bind=tenant_db.connection())
+            db.get_tenant_specific_metadata().create_all(bind=tenant_db.connection())
             tenant_db.commit()
 
     def delete(self, project: Project, **kwargs) -> None:
