@@ -6,7 +6,7 @@ from pylon.core.tools import log
 import cachetools
 from pydantic.v1 import ValidationError
 
-from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools
+from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools, rpc_tools
 
 from sqlalchemy.exc import NoResultFound
 from ...models.pd.project import ProjectCreatePD
@@ -45,31 +45,40 @@ def delete_project(project_id: int, module) -> List[dict]:
 
 
 @cachetools.cached(cache=cachetools.TTLCache(maxsize=1024, ttl=300))
+def filter_for_check_public_role(user_id):
+    check_public_project_allowed = None
+    rpc_timeout = rpc_tools.RpcMixin().rpc.timeout
+
+    vault_client = VaultClient()
+    secrets = vault_client.get_all_secrets()
+    try:
+        public_project_id = int(secrets['ai_project_id'])
+        public_admin_role = secrets['ai_public_admin_role']
+
+        def check_public_project_allowed(project) -> bool:
+            if project['id'] == public_project_id:
+                roles = {role['name'] for role in rpc_timeout(
+                    2
+                ).admin_get_user_roles(public_project_id, user_id)}
+                return public_admin_role in roles
+            return True
+    except KeyError as e:
+        log.info('public_project_id or public_admin_role secrets are not set')
+    except Empty as e:
+        log.error(e)
+
+    return check_public_project_allowed
+
+
 def do_project_list(user_id, offset_, limit_, search_, check_public_role, module):
     projects = module.list_user_projects(
         user_id, offset_=offset_, limit_=limit_, search_=search_
     )
 
     if check_public_role:
-        vault_client = VaultClient()
-        secrets = vault_client.get_all_secrets()
-        try:
-            public_project_id = int(secrets['ai_project_id'])
-            public_admin_role = secrets['ai_public_admin_role']
-
-            def check_public_project_allowed(project) -> bool:
-                if project['id'] == public_project_id:
-                    roles = {role['name'] for role in module.context.rpc_manager.timeout(
-                        2
-                    ).admin_get_user_roles(public_project_id, user_id)}
-                    return public_admin_role in roles
-                return True
-
+        check_public_project_allowed = filter_for_check_public_role(user_id)
+        if check_public_project_allowed:
             projects = list(filter(check_public_project_allowed, projects))
-        except KeyError as e:
-            log.info('public_project_id or public_admin_role secrets are not set')
-        except Empty as e:
-            log.error(e)
 
     return projects
 

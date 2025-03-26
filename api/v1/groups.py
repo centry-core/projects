@@ -61,8 +61,15 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
                 session.commit()
                 groups.extend(new_groups)
 
+            old_group_names = {g.name for g in project.groups}
             project.groups = groups
 
             session.commit()
             serialized = serialize(ProjectListModel.from_orm(project))
+
+            if old_group_names != group_names:
+                self.module.clear_user_projects_cache(
+                    self.module.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
+                )
+
         return serialized, 200

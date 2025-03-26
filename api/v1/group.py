@@ -52,6 +52,9 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
                 group = ProjectGroup(name=parsed.name)
             if group not in project.groups:
                 project.groups.append(group)
+                self.module.clear_user_projects_cache(
+                    self.module.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
+                )
 
             session.commit()
             serialized = serialize(ProjectListModel.from_orm(project))
@@ -64,7 +67,7 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
             "default": {"admin": True, "viewer": False, "editor": True},
             "developer": {"admin": True, "viewer": False, "editor": True},
         }})
-    def delete(self, project_id: int, group_id: int):
+    def delete(self, project_id: int, group_id: int, **kwargs):
         with db.get_session() as session:
             project = session.query(Project).filter_by(id=project_id).first()
             group = session.query(ProjectGroup).filter_by(id=group_id).first()
@@ -73,6 +76,9 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
                 try:
                     project.groups.remove(group)
                     session.commit()
+                    self.module.clear_user_projects_cache(
+                        self.module.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
+                    )
                 except ValueError:
                     pass
             else:
