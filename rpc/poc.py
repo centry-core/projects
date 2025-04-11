@@ -203,7 +203,10 @@ class RPC:
         self.projects_lock.set()
         #
         try:
-            for user_data in self.visitors.values():
+            visitors_data = list(self.visitors.values())
+            self.visitors = defaultdict(dict)
+            #
+            for user_data in visitors_data:
                 if not isinstance(user_data.get('id', ''), int):
                     continue
                 #
@@ -221,7 +224,6 @@ class RPC:
                 #
                 create_personal_project(user_id=user_id, module=self)
             #
-            self.visitors = defaultdict(dict)
         finally:
             self.projects_lock.clear()
 
