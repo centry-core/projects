@@ -14,7 +14,7 @@
 from typing import Optional, List
 
 from ..models.pd.project import ProjectListModel
-from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table
+from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table, asc
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy import select
 
@@ -84,7 +84,8 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     @staticmethod
     def list_projects(project_id: int = None, search_: str = None,
                       limit_: int = None, offset_: int = None,
-                      filter_: Optional[dict] = None, **kwargs) -> dict | list[dict] | None:
+                      filter_: Optional[dict] = None,
+                      **kwargs) -> dict | list[dict] | None:
         flt = []
         if filter_ is not None:
             for k, v in filter_.items():
@@ -103,6 +104,8 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
                 stmt = select(Project).where(Project.name.ilike(f"%{search_}%")).limit(limit_).offset(offset_)
             else:
                 stmt = select(Project).where(*flt).limit(limit_).offset(offset_)
+
+            stmt = stmt.order_by(asc(Project.id))
 
             projects = session.scalars(stmt.options(joinedload(Project.groups))).unique().all()
             return [ProjectListModel.from_orm(project).dict() for project in projects]
