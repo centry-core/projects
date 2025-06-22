@@ -41,6 +41,8 @@ def delete_project(project_id: int, module) -> List[dict]:
             except Exception as e:
                 log.warning('step exc %s %s', repr(step), e)
             statuses.append(step.status['deleted'])
+
+        module.context.event_manager.fire_event('project_deleted', context['project'].to_json())
         return statuses
 
 
