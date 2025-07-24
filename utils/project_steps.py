@@ -1,25 +1,22 @@
 from datetime import datetime
-import json
 from typing import Optional
 
+from pylon.core.tools import log
 from sqlalchemy import schema
 from sqlalchemy.exc import NoResultFound
+from tools import db, VaultClient, auth, constants as c, MinioClient
+
 from . import get_project_user
 from .helpers import ProjectCreationStep
 from .rabbit_utils import password_generator, create_rabbit_user_and_vhost, \
     delete_rabbit_user_and_vhost
 from ..constants import INFLUX_DATABASES, PROJECT_SCHEMA_TEMPLATE, PROJECT_USER_NAME_TEMPLATE, \
     PROJECT_USER_EMAIL_TEMPLATE, PROJECT_RABBIT_USER_TEMPLATE, PROJECT_RABBIT_VHOST_TEMPLATE
-
 from ..models.pd.project import ProjectCreatePD
 from ..models.project import Project
 from ..models.quota import ProjectQuota
 from ..models.statistics import Statistic
-
 from ..tools.influx_tools import get_client
-
-from pylon.core.tools import log
-from tools import db, VaultClient, auth, constants as c, TaskManager, MinioClient
 
 
 class ProjectModel(ProjectCreationStep):
@@ -286,26 +283,34 @@ class ProjectAdmin(ProjectCreationStep):
         ...
 
 
-class Invitations(ProjectCreationStep):
-    name = 'invitations'
-
-    def create(self, project_model: ProjectCreatePD, **kwargs) -> None:
-        if project_model.invitation_integration:
-            log.info(f'sending invitation {project_model.invitation_integration=}')
-            invitation_integration = json.loads(
-                project_model.invitation_integration.replace("'", '"').replace('None', 'null'))
-            email_integration = self.module.context.rpc_manager.call.integrations_get_by_id(
-                invitation_integration['smtp_integration']['project_id'],
-                invitation_integration['smtp_integration']['id'],
-            )
-            TaskManager(mode='administration').run_task([{
-                'recipients': [project_model.project_admin_email],
-                'subject': 'Invitation to a Centry project',
-                'template': invitation_integration['template'],
-            }], email_integration.task_id)
-
-    def delete(self, **kwargs) -> None:
-        ...
+# class Invitations(ProjectCreationStep):
+#     name = 'invitations'
+#
+#     def create(self, project_model: ProjectCreatePD, **kwargs) -> None:
+#         if project_model.invitation_integration:
+#             log.info(f'sending invitation {project_model.invitation_integration=}')
+#             invitation_integration = json.loads(
+#                 project_model.invitation_integration.replace("'", '"').replace('None', 'null'))
+#             if invitation_integration:
+#                 try:
+#                     email_integration = self.module.context.rpc_manager.timeout(1).integrations_get_by_id(
+#                         invitation_integration['smtp_integration']['project_id'],
+#                         invitation_integration['smtp_integration']['id'],
+#                     )
+#                     try:
+#                         from tools import TaskManager
+#                         TaskManager(mode='administration').run_task([{
+#                             'recipients': [project_model.project_admin_email],
+#                             'subject': 'Invitation to a Centry project',
+#                             'template': invitation_integration['template'],
+#                         }], email_integration.task_id)
+#                     except ImportError:
+#                         ...
+#                 except Empty:
+#                     ...
+#
+#     def delete(self, **kwargs) -> None:
+#         ...
 
 
 # We initialize classes to form project creation sequence
@@ -323,7 +328,7 @@ def get_steps(module=None, reverse: bool = False):
         RabbitVhost,
         InfluxDatabases,
         ProjectAdmin,
-        Invitations
+        # Invitations
     ]
     if reverse:
         steps = reversed(steps)

@@ -13,7 +13,7 @@
 #   limitations under the License.
 from typing import Optional
 
-from influxdb import InfluxDBClient
+
 from tools import VaultClient
 
 
@@ -33,5 +33,5 @@ def get_client(
     influx_port = all_secrets.get("influx_port", 8086)
     influx_user = all_secrets.get("influx_user", "")
     influx_password = all_secrets.get("influx_password", "")
-
+    from influxdb import InfluxDBClient
     return InfluxDBClient(influx_host, influx_port, influx_user, influx_password, db_name, **kwargs)

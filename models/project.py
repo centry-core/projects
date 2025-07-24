@@ -32,9 +32,9 @@ class ProjectGroup(db.Base):
 
     projects: Mapped[List['Project']] = relationship(
         secondary=lambda: ProjectGroupAssociation,
-        backref='group',
-        # back_populates='group',
-        lazy='dynamic'
+        back_populates='groups',
+        lazy='dynamic',
+        overlaps="groups,project_group_association"
     )
 
 
@@ -63,9 +63,9 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
     create_success = Column(Boolean, nullable=False, default=False)
     groups: Mapped[List[ProjectGroup]] = relationship(
         secondary=lambda: ProjectGroupAssociation,
-        backref='project',
-        # back_populates='project',
-        lazy='joined'
+        back_populates='projects',
+        lazy='joined',
+        overlaps="projects,project_group_association"
     )
 
     def get_data_retention_limit(self) -> Optional[int]:

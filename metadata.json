@@ -1,6 +1,6 @@
 {
   "name": "Carrier Project RestAPI Plugin",
   "version": "0.5",
-  "depends_on": ["auth", "shared", "tasks", "admin"],
+  "depends_on": ["auth", "shared", "admin"],
   "init_after": ["scheduling", "auth_manager"]
 }

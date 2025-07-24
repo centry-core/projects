@@ -6,7 +6,7 @@ from pylon.core.tools import log
 import cachetools
 from pydantic.v1 import ValidationError
 
-from tools import auth, VaultClient, TaskManager, db, api_tools, db_tools, rpc_tools
+from tools import auth, VaultClient, db, api_tools, db_tools, rpc_tools
 
 from sqlalchemy.exc import NoResultFound
 from ...models.pd.project import ProjectCreatePD
