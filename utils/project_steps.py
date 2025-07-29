@@ -319,12 +319,12 @@ class ProjectAdmin(ProjectCreationStep):
 def get_steps(module=None, reverse: bool = False):
     steps = [
         ProjectModel,
-        MinioBuckets,
         ProjectSchema,
         ProjectPermissions,
         SystemUser,
         SystemToken,
         ProjectSecrets,
+        MinioBuckets,
         RabbitVhost,
         InfluxDatabases,
         ProjectAdmin,
