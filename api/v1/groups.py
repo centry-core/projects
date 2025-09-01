@@ -26,13 +26,13 @@ class API(api_tools.APIBase):  # pylint: disable=R0903
         project_with_group = self.module.get_all_groups(name_filter=q)
         return project_with_group, 200
 
-    # @auth.decorators.check_api({
-    #     "permissions": ["projects.projects.groups.edit"],
-    #     "recommended_roles": {
-    #         "administration": {"admin": True, "viewer": False, "editor": True},
-    #         "default": {"admin": True, "viewer": False, "editor": True},
-    #         "developer": {"admin": True, "viewer": False, "editor": True},
-    #     }})
+    @auth.decorators.check_api({
+        "permissions": ["projects.projects.groups.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": True},
+            "default": {"admin": True, "viewer": False, "editor": True},
+            "developer": {"admin": True, "viewer": False, "editor": True},
+        }})
     def put(self, project_id: int, **kwargs) -> tuple[dict, int]:
         raw = dict(request.json)
         raw['project_id'] = project_id
