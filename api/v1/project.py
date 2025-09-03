@@ -46,7 +46,7 @@ def delete_project(project_id: int, module) -> List[dict]:
         return statuses
 
 
-@cachetools.cached(cache=cachetools.TTLCache(maxsize=1024, ttl=300))
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=20480, ttl=300))
 def filter_for_check_public_role(user_id):
     check_public_project_allowed = None
     rpc_timeout = rpc_tools.RpcMixin().rpc.timeout

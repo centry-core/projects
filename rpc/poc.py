@@ -100,7 +100,7 @@ def is_system_user(email: str) -> bool:
     return bool(match)
 
 
-user_projects_cache = cachetools.TTLCache(maxsize=1024, ttl=300)
+user_projects_cache = cachetools.TTLCache(maxsize=20480, ttl=300)
 
 
 class RPC:
