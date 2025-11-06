@@ -20,6 +20,7 @@ from collections import defaultdict
 from queue import Empty
 
 import flask
+import cachetools  # pylint: disable=E0401
 
 from pylon.core.tools import module, log  # pylint: disable=E0611,E0401
 from pylon.core.tools.context import Context as Holder
@@ -36,6 +37,9 @@ class Module(module.ModuleModel):
         self.descriptor = descriptor
         #
         self.projects_lock = threading.RLock()
+        #
+        self.user_projects_cache = cachetools.TTLCache(maxsize=20480, ttl=300)
+        self.check_public_role_cache = cachetools.TTLCache(maxsize=20480, ttl=300)
 
     def init(self):
         """ Init module """

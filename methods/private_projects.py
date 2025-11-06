@@ -20,6 +20,8 @@
 import queue
 import threading
 
+import cachetools  # pylint: disable=E0401
+
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
@@ -42,6 +44,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         """ Method """
         self.visitors_queue = queue.SimpleQueue()
         self.visitors_queue_get_timeout = 1
+        #
+        self.visitors_cache = cachetools.TTLCache(maxsize=20480, ttl=300)
         #
         self.visitors_processor_thread = threading.Thread(
             target=self.visitors_processor,
@@ -72,6 +76,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         user_id = visitor["id"]
         #
+        with self.projects_lock:
+            if user_id in self.visitors_cache:
+                return
+            #
+            self.visitors_cache[user_id] = visitor
+        #
         if visitor.get("type", "") == "token":
             try:
                 user_id = self.context.rpc_manager.call.auth_get_token(user_id)["user_id"]
@@ -85,7 +95,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 return
         #
         with self.projects_lock:
-            log.debug("Creating private project for user ID (if not exists): %s", user_id)
+            log.info("Creating private project for user ID (if not exists): %s", user_id)
             #
             if create_personal_project(user_id=user_id, module=self) is True:
-                self.clear_user_projects_cache([user_id])
+                self.invalidate_user_caches(user_id)

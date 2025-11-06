@@ -8,6 +8,7 @@ from tools import auth
 from tools import rpc_tools
 from tools import db
 from tools import context
+from tools import this
 from pylon.core.tools import web
 from pylon.core.tools import log
 
@@ -105,13 +106,10 @@ def is_system_user(email: str) -> bool:
     return bool(match)
 
 
-user_projects_cache = cachetools.TTLCache(maxsize=20480, ttl=300)
-
-
 class RPC:
     @web.rpc("list_user_projects", "list_user_projects")
     @rpc_tools.wrap_exceptions(RuntimeError)
-    @cachetools.cached(cache=user_projects_cache)
+    @cachetools.cached(cache=this.module.user_projects_cache)
     def list_user_projects(self, user_id: int, **kwargs) -> list:
         all_projects = self.list(**kwargs)
         #
@@ -133,10 +131,10 @@ class RPC:
     @web.rpc("clear_user_projects_cache", "clear_user_projects_cache")
     @rpc_tools.wrap_exceptions(RuntimeError)
     def clear_user_projects_cache(self, user_ids):
-        for cached_key in list(user_projects_cache.keys()):
+        for cached_key in list(self.user_projects_cache.keys()):
             cached_user_id = cached_key[1]  # cached_func, cached_user_id, ...
             if cached_user_id in user_ids:
-                user_projects_cache.pop(cached_key)
+                self.user_projects_cache.pop(cached_key, None)
 
     @web.rpc("add_user_to_project_or_create", "add_user_to_project_or_create")
     @rpc_tools.wrap_exceptions(RuntimeError)
