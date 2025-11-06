@@ -26,10 +26,14 @@ class RPC:  # pylint: disable=R0903
     @web.rpc()
     def invalidate_user_caches(self, user_id):
         """ Invalidate user caches """
+        log.debug("--- Clear: user_projects_cache")
         clear_cache(self.user_projects_cache, lambda x: x[1], user_id)
+        log.debug("--- Clear: check_public_role_cache")
         clear_cache(self.check_public_role_cache, lambda x: x[1], user_id)
         #
         if hasattr(auth, "get_user_permissions_cache"):
+            log.debug("--- Clear: get_user_permissions_cache")
             clear_cache(auth.get_user_permissions_cache, lambda x: x[1], user_id)
         if hasattr(auth, "get_user_cache"):
+            log.debug("--- Clear: get_user_cache")
             clear_cache(auth.get_user_cache, lambda x: x[1], user_id)
