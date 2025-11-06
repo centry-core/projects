@@ -106,7 +106,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         if project_created:
             project_id = self.get_personal_project_id(user_id)
             #
-            self.context.event_manager.event_manager.fire_event(
+            self.context.event_manager.fire_event(
                 "notifications_stream", {
                     "project_id": project_id,
                     "user_id": user_id,
