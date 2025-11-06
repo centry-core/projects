@@ -94,8 +94,23 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 log.exception("Failed to get user from token. Skipping")
                 return
         #
+        project_created = False
+        #
         with self.projects_lock:
             log.info("Creating private project for user ID (if not exists): %s", user_id)
             #
             if create_personal_project(user_id=user_id, module=self) is True:
                 self.invalidate_user_caches(user_id)
+                project_created = True
+        #
+        if project_created:
+            project_id = self.get_personal_project_id(user_id)
+            #
+            self.context.event_manager.event_manager.fire_event(
+                "notifications_stream", {
+                    "project_id": project_id,
+                    "user_id": user_id,
+                    "meta": {},
+                    "event_type": "private_project_created",
+                }
+            )
