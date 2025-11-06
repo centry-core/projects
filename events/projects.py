@@ -4,8 +4,8 @@ from pylon.core.tools import web, log
 class Event:
 
     @web.event(f"auth_visitor")
-    def personal_project(self, context, event, payload):
-        self.visitors[(payload.get('id'), payload.get('type'))] = payload
+    def personal_project(self, _context, _event, payload):
+        self.visitors_queue.put(payload)
 
     @web.event(f"delete_project")
     def delete_project(self, context, event, payload):

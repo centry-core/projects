@@ -35,8 +35,7 @@ class Module(module.ModuleModel):
         self.context = context
         self.descriptor = descriptor
         #
-        self.visitors = defaultdict(dict)  # use for creating personal projects for each user
-        self.projects_lock = threading.Event()
+        self.projects_lock = threading.RLock()
 
     def init(self):
         """ Init module """
@@ -80,11 +79,13 @@ class Module(module.ModuleModel):
                 except:
                     log.warning('Couldn\'t fix rabbit for project %s', p)
 
-
+        self.descriptor.init_methods()
+        self.descriptor.init_inits()
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module")
+        self.descriptor.deinit_deinits()  # TODO: new-style init_all/deinit_all
 
     def _before_request_hook(self):
         flask.g.project = Holder()

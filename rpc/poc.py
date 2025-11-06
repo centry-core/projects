@@ -195,65 +195,25 @@ class RPC:
     @web.rpc("projects_create_personal_project", "create_personal_project")
     @rpc_tools.wrap_exceptions(RuntimeError)
     def create_personal_project_from_visitors(self) -> None:
-        #
-        if self.projects_lock.is_set():
-            log.warning("Another projects-related schedule action is alrady running")
-            return
-        #
-        self.projects_lock.set()
-        #
-        try:
-            visitors_data = list(self.visitors.values())
-            self.visitors = defaultdict(dict)
-            #
-            for user_data in visitors_data:
-                if not isinstance(user_data.get('id', ''), int):
-                    continue
-                #
-                user_id = user_data['id']
-                if user_data.get('type', '') == 'token':
-                    try:
-                        user_id = self.context.rpc_manager.call.auth_get_token(user_data['id'])['user_id']
-                        user_name = self.context.rpc_manager.call.auth_get_user(user_id)['name']
-                        if user_name.startswith(PROJECT_USER_NAME_PREFIX):
-                            log.warning(f"Skipping to create personal project for {user_name}")
-                            continue
-                    except:
-                        log.exception("Failed to get user from token. Skipping")
-                        continue
-                #
-                create_personal_project(user_id=user_id, module=self)
-            #
-        finally:
-            self.projects_lock.clear()
+        return  # NO-OP
 
     @web.rpc("projects_fix_create_personal_projects", "fix_create_personal_projects")
     @rpc_tools.wrap_exceptions(RuntimeError)
     def fix_create_personal_projects(self) -> None:
-        #
-        if self.projects_lock.is_set():
-            log.warning("Another projects-related schedule action is alrady running")
-            return
-        #
-        self.projects_lock.set()
-        #
-        try:
-            for user in auth.list_users():
-                # log.info(f'{user=}')
-                # log.info(f'{is_system_user(user["email"])=}')
-                if not is_system_user(user["email"]):
-                    project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user['id'])
-                    with db.with_project_schema_session(None) as session:
-                        project = session.query(Project).where(Project.name == project_name).first()
-                        if not project:
+        for user in auth.list_users():
+            # log.info(f'{user=}')
+            # log.info(f'{is_system_user(user["email"])=}')
+            if not is_system_user(user["email"]):
+                project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user['id'])
+                with db.with_project_schema_session(None) as session:
+                    project = session.query(Project).where(Project.name == project_name).first()
+                    if not project:
+                        with self.projects_lock:
                             create_personal_project(user_id=user['id'], module=self)
-                        elif not project.create_success:
+                    elif not project.create_success:
+                        with self.projects_lock:
                             delete_project(project_id=project.id, module=self)
                             create_personal_project(user_id=user['id'], module=self)
-                        else:
-                            ...
-        finally:
-            self.projects_lock.clear()
 
     @web.rpc("projects_get_personal_project_id", "get_personal_project_id")
     @rpc_tools.wrap_exceptions(RuntimeError)
