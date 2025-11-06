@@ -87,5 +87,5 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         with self.projects_lock:
             log.debug("Creating private project for user ID (if not exists): %s", user_id)
             #
-            create_personal_project(user_id=user_id, module=self)
-            self.clear_user_projects_cache([user_id])
+            if create_personal_project(user_id=user_id, module=self) is True:
+                self.clear_user_projects_cache([user_id])

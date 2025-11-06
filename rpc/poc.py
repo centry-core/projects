@@ -66,8 +66,10 @@ def create_personal_project(user_id: int,
                             roles: list = ('editor', 'viewer', 'monitor')
                             ):
     project_name = PROJECT_PERSONAL_NAME_TEMPLATE.format(user_id=user_id)
+    #
     with db.with_project_schema_session(None) as session:
         p = session.query(Project).where(Project.name == project_name).first()
+    #
     if not p:
         project_admin_email = module.context.rpc_manager.call.auth_get_user(user_id)['email']
         try:
@@ -80,18 +82,21 @@ def create_personal_project(user_id: int,
             log.error(f'Error creating project {project_name=} for {user_id=}: {project_admin_email=}')
             log.error(format_exc())
             raise e
-
+        #
         context = {
             'project_model': project_model,
             'owner_id': user_id,
             'roles': list(roles)
         }
-
+        #
         try:
             create_project(module, context)
             log.info(f'Personal project {project_name} created')
+            return True
         except Exception:
             log.critical(format_exc())
+    #
+    return False
 
 
 def is_system_user(email: str) -> bool:
