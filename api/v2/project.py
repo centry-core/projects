@@ -92,6 +92,7 @@ class ProjectAPI(api_tools.APIModeHandler):
             "default": {"admin": True, "viewer": True, "editor": True},
             "developer": {"admin": True, "viewer": True, "editor": True},
         }})
+    @api_tools.endpoint_metrics
     def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
         user_id = auth.current_user().get("id")
         if not user_id:
@@ -113,6 +114,7 @@ class AdminAPI(api_tools.APIModeHandler):
         "recommended_roles": {
             "administration": {"admin": True, "viewer": True, "editor": True},
         }})
+    @api_tools.endpoint_metrics
     def get(self, **kwargs) -> tuple[dict, int] | tuple[list, int]:
         user_id = auth.current_user().get("id")
         if not user_id:
@@ -133,6 +135,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "default": {"admin": False, "viewer": False, "editor": False},
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
+    @api_tools.endpoint_metrics
     def post(self, **kwargs) -> tuple[dict, int]:
         # Validate incoming data
         status_code = 201
@@ -171,6 +174,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "default": {"admin": False, "viewer": False, "editor": False},
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
+    @api_tools.endpoint_metrics
     def put(self, project_id: Optional[int] = None) -> Tuple[dict, int]:
         # data = self._parser_post.parse_args()
         data = request.json
@@ -193,6 +197,7 @@ class AdminAPI(api_tools.APIModeHandler):
             "default": {"admin": False, "viewer": False, "editor": False},
             "developer": {"admin": False, "viewer": False, "editor": False},
         }})
+    @api_tools.endpoint_metrics
     def delete(self, project_id: int):
         user_ids = self.module.context.rpc_manager.call.admin_get_users_ids_in_project(project_id)
         self.module.context.event_manager.fire_event(
