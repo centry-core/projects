@@ -85,6 +85,18 @@ class Module(module.ModuleModel):
 
         self.descriptor.init_methods()
         self.descriptor.init_inits()
+        self._register_openapi()
+
+    def _register_openapi(self):
+        """Register API endpoints with OpenAPI registry."""
+        from tools import openapi_registry # pylint: disable=E0401,C0415
+        from .api import v2 as api_v2
+        openapi_registry.register_plugin(
+            plugin_name="projects",
+            version=self.descriptor.metadata.get("version", "1.0.0"),
+            description="Projects API endpoints",
+            api_module=api_v2,
+        )
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """

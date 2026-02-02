@@ -6,7 +6,7 @@ from pylon.core.tools import log
 import cachetools
 from pydantic.v1 import ValidationError
 
-from tools import auth, VaultClient, db, api_tools, db_tools, rpc_tools, this
+from tools import auth, VaultClient, db, api_tools, db_tools, rpc_tools, this, register_openapi
 
 from sqlalchemy.exc import NoResultFound
 from ...models.pd.project import ProjectCreatePD
@@ -86,6 +86,11 @@ def do_project_list(user_id, offset_, limit_, search_, check_public_role, module
 
 
 class ProjectAPI(api_tools.APIModeHandler):
+    @register_openapi(
+        name="Get Project Details",
+        description="Retrieve a list of projects associated with the current user.",
+        mcp_tool=True
+    )
     @auth.decorators.check_api({
         "permissions": ["projects.projects.project.view"],
         "recommended_roles": {
