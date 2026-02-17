@@ -3,6 +3,7 @@ from typing import Optional
 from flask import make_response, g
 from flask_restful import Resource
 from pylon.core.tools import log
+from tools import auth
 
 from ...models.project import Project
 from ...tools.session_project import SessionProject
@@ -22,6 +23,10 @@ class API(Resource):
     def get(self, project_id: Optional[int] = None):
         if not project_id:
             project_id = SessionProject.get()
+        #
+        if not auth.is_user_in_project(project_id):
+            return {"message": "Access denied"}, 403
+        #
         if project_id:
             project = Project.query.get_or_404(project_id, exclude_fields=Project.API_EXCLUDE_FIELDS)
             return project.to_json(), 200
@@ -29,12 +34,19 @@ class API(Resource):
 
     def post(self, project_id: int):
         log.info('Session project POST pid: %s', project_id)
+        #
+        if not auth.is_user_in_project(project_id):
+            return "Access denied", 403
+        #
         project = Project.query.get_or_404(project_id)
         SessionProject.set(project.id)
         SessionProjectPlugin.set(project.plugins)
         return str(project.id), 200
 
     def delete(self, project_id: int):
+        if not auth.is_user_in_project(project_id):
+            return None, 403
+        #
         project = Project.query.get_or_404(project_id)
         if SessionProject.get() == project.id:
             SessionProject.pop()
