@@ -109,12 +109,7 @@ class ProjectPermissions(ProjectCreationStep):
 
     def create(self, project: Project, **kwargs) -> None:
         project_roles = auth.get_roles(mode='default')
-        project_permissions = auth.get_permissions(mode='default')
         self.module.context.rpc_manager.call.admin_add_role(project.id, [i["name"] for i in project_roles])
-        for permission in project_permissions:
-            self.module.context.rpc_manager.call.admin_set_permission_for_role(
-                project.id, permission['name'], permission["permission"]
-            )
 
     def delete(self, **kwargs) -> None:
         ...
