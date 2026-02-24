@@ -32,6 +32,11 @@ class RPC:
     def list_projects(self, **kwargs):
         return Project.list_projects(**kwargs)
 
+    @web.rpc('project_list_paginated', 'list_paginated')
+    @rpc_tools.wrap_exceptions(RuntimeError)
+    def list_projects_paginated(self, **kwargs):
+        return Project.list_projects_paginated(**kwargs)
+
     # @web.rpc('project_statistics', 'statistics')
     # @rpc_tools.wrap_exceptions(RuntimeError)
     # def get_project_statistics(self, project_id):

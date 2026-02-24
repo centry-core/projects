@@ -30,6 +30,7 @@ class ProjectListModel(BaseModel):
     plugins: Optional[List[str]]
     keycloak_groups: Optional[dict]
     create_success: Optional[bool]
+    suspended: Optional[bool] = False
     groups: List[GroupListModel]
 
     class Config:

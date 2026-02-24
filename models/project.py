@@ -14,7 +14,7 @@
 from typing import Optional, List
 
 from ..models.pd.project import ProjectListModel
-from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table, asc
+from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table, asc, desc, func, case
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy import select
 
@@ -61,6 +61,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         nullable=False, default={},
     )
     create_success = Column(Boolean, nullable=False, default=False)
+    suspended = Column(Boolean, nullable=False, default=False, server_default='false')
     groups: Mapped[List[ProjectGroup]] = relationship(
         secondary=lambda: ProjectGroupAssociation,
         back_populates='projects',
@@ -109,3 +110,72 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
 
             projects = session.scalars(stmt.options(joinedload(Project.groups))).unique().all()
             return [ProjectListModel.from_orm(project).dict() for project in projects]
+
+    @staticmethod
+    def list_projects_paginated(
+        limit: int = 20,
+        offset: int = 0,
+        search: str = None,
+        sort_by: str = "name",
+        sort_order: str = "asc",
+        project_type: str = None,
+    ) -> dict:
+        """List projects with DB-level pagination, filtering, sorting, and tab counts."""
+        with db.with_project_schema_session(None) as session:
+            # Tab counts (unfiltered by search/project_type)
+            is_personal = Project.name.like("project_user_%")
+            counts_stmt = select(
+                func.count().label("total"),
+                func.sum(case((is_personal, 1), else_=0)).label("personal"),
+            ).select_from(Project)
+            counts_row = session.execute(counts_stmt).one()
+            personal_count = int(counts_row.personal or 0)
+            team_count = int(counts_row.total) - personal_count
+            #
+            # Build filtered query
+            #
+            conditions = []
+            if project_type == "personal":
+                conditions.append(is_personal)
+            elif project_type == "team":
+                conditions.append(~is_personal)
+            if search:
+                conditions.append(
+                    Project.name.ilike(f"%{search}%")
+                )
+            #
+            stmt = select(Project).where(*conditions) if conditions else select(Project)
+            #
+            # Count after filtering (for pagination total)
+            #
+            count_stmt = select(func.count()).select_from(Project)
+            if conditions:
+                count_stmt = count_stmt.where(*conditions)
+            total = session.execute(count_stmt).scalar()
+            #
+            # Sorting
+            #
+            sort_map = {
+                "name": Project.name,
+                "id": Project.id,
+                "create_success": Project.create_success,
+            }
+            sort_col = sort_map.get(sort_by, Project.name)
+            order_fn = desc if sort_order.lower() == "desc" else asc
+            stmt = stmt.order_by(order_fn(sort_col))
+            #
+            # Pagination
+            #
+            stmt = stmt.limit(limit).offset(offset)
+            stmt = stmt.options(joinedload(Project.groups))
+            projects = session.scalars(stmt).unique().all()
+            rows = [ProjectListModel.from_orm(p).dict() for p in projects]
+            #
+            return {
+                "rows": rows,
+                "total": total,
+                "counts": {
+                    "personal": personal_count,
+                    "team": team_count,
+                },
+            }
