@@ -55,17 +55,16 @@ def filter_for_check_public_role(user_id):
     secrets = vault_client.get_all_secrets()
     try:
         public_project_id = int(secrets['ai_project_id'])
-        public_admin_role = secrets['ai_public_admin_role']
 
         def check_public_project_allowed(project) -> bool:
             if project['id'] == public_project_id:
                 roles = {role['name'] for role in rpc_timeout(
                     2
                 ).admin_get_user_roles(public_project_id, user_id)}
-                return public_admin_role in roles
+                return 'admin' in roles
             return True
     except KeyError as e:
-        log.info('public_project_id or public_admin_role secrets are not set')
+        log.info('ai_project_id secret is not set')
     except Empty as e:
         log.error(e)
 
