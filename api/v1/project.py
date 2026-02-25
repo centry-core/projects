@@ -51,10 +51,9 @@ def filter_for_check_public_role(user_id):
     check_public_project_allowed = None
     rpc_timeout = rpc_tools.RpcMixin().rpc.timeout
 
-    vault_client = VaultClient()
-    secrets = vault_client.get_all_secrets()
     try:
-        public_project_id = int(secrets['ai_project_id'])
+        from tools import elitea_config  # pylint: disable=C0415,E0401
+        public_project_id = int(elitea_config.get("ai_project_id", 1))
 
         def check_public_project_allowed(project) -> bool:
             if project['id'] == public_project_id:
@@ -63,8 +62,6 @@ def filter_for_check_public_role(user_id):
                 ).admin_get_user_roles(public_project_id, user_id)}
                 return 'admin' in roles
             return True
-    except KeyError as e:
-        log.info('ai_project_id secret is not set')
     except Empty as e:
         log.error(e)
 
