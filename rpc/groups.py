@@ -2,7 +2,6 @@ from typing import List, Literal
 
 from sqlalchemy import not_
 from ..models.pd.group import GroupListModel
-from ..models.pd.monitoring import GroupMonitoringListModel, ProjectMonitoringListModel
 from ..models.pd.project import ProjectListModel
 from ..models.project import Project, ProjectGroup
 
@@ -45,9 +44,10 @@ class RPC:
 
             return [
                 dict(
-                    GroupMonitoringListModel.from_orm(g).dict(),
+                    id=g.id,
+                    name=g.name,
                     projects=[
-                        ProjectMonitoringListModel.from_orm(p).dict()
+                        {"id": p.id, "name": p.name}
                         for p in g.projects.all()
                         if p.id in user_projects_ids
                     ]
