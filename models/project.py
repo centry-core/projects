@@ -14,7 +14,7 @@
 from typing import Optional, List
 
 from ..models.pd.project import ProjectListModel
-from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table, asc, desc, func, case
+from sqlalchemy import String, Column, Integer, JSON, ARRAY, Text, Boolean, ForeignKey, Table, asc, desc, func, case, cast, or_
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy import select
 
@@ -119,6 +119,7 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
         sort_by: str = "name",
         sort_order: str = "asc",
         project_type: str = None,
+        owner_ids: list = None,
     ) -> dict:
         """List projects with DB-level pagination, filtering, sorting, and tab counts."""
         with db.with_project_schema_session(None) as session:
@@ -140,9 +141,15 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
             elif project_type == "team":
                 conditions.append(~is_personal)
             if search:
-                conditions.append(
-                    Project.name.ilike(f"%{search}%")
-                )
+                search_conditions = [
+                    Project.name.ilike(f"%{search}%"),
+                    cast(Project.id, String).ilike(f"%{search}%"),
+                ]
+                if owner_ids:
+                    search_conditions.append(Project.owner_id.in_(owner_ids))
+                conditions.append(or_(*search_conditions))
+            elif owner_ids:
+                conditions.append(Project.owner_id.in_(owner_ids))
             #
             stmt = select(Project).where(*conditions) if conditions else select(Project)
             #
@@ -159,6 +166,12 @@ class Project(db_tools.AbstractBaseMixin, rpc_tools.RpcMixin, db.Base):
                 "name": Project.name,
                 "id": Project.id,
                 "create_success": Project.create_success,
+                "status": case(
+                    (Project.suspended == True, 3),
+                    (Project.create_success == True, 0),
+                    (Project.create_success == False, 2),
+                    else_=1,
+                ),
             }
             sort_col = sort_map.get(sort_by, Project.name)
             order_fn = desc if sort_order.lower() == "desc" else asc
