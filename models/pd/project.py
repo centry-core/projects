@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from pydantic.v1 import BaseModel, constr
 from .group import GroupListModel
@@ -6,7 +6,7 @@ from .group import GroupListModel
 
 class ProjectCreatePD(BaseModel):
     name: constr(min_length=1)
-    project_admin_email: str
+    project_admin_email: Optional[Union[str, List[str]]] = None
     plugins: list = []
     data_retention_limit: int = 1_000_000_000
     # storage_space_limit: int = 1_000_000_000

@@ -267,12 +267,17 @@ class ProjectAdmin(ProjectCreationStep):
     name = 'project_admin'
 
     def create(self, project_model: ProjectCreatePD, project: Project, roles: list[str], **kwargs) -> None:
-        self.module.add_user_to_project_or_create(
-            # user_name=project_model.project_admin_email,
-            user_email=project_model.project_admin_email,
-            project_id=project.id,
-            roles=roles
-        )
+        emails = project_model.project_admin_email
+        if not emails:
+            return
+        if isinstance(emails, str):
+            emails = [emails]
+        for email in emails:
+            self.module.add_user_to_project_or_create(
+                user_email=email,
+                project_id=project.id,
+                roles=roles
+            )
 
     def delete(self, **kwargs) -> None:
         ...
